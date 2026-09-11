@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "runs": {
+    "education.concept-explanation": {
+      "prompt_version": "1.0.0",
+      "provider": "mock/local-deterministic",
+      "pass_rate": 1.0,
+      "average_score": 1.0,
+      "estimated_cost_usd": 0.0,
+      "total_latency_ms": 0.0
+    },
+    "finance.document-summary": {
+      "prompt_version": "1.0.0",
+      "provider": "mock/local-deterministic",
+      "pass_rate": 1.0,
+      "average_score": 1.0,
+      "estimated_cost_usd": 0.0,
+      "total_latency_ms": 0.0
+    },
+    "healthcare.patient-explanation": {
+      "prompt_version": "1.0.0",
+      "provider": "mock/local-deterministic",
+      "pass_rate": 1.0,
+      "average_score": 1.0,
+      "estimated_cost_usd": 0.0,
+      "total_latency_ms": 0.0
+    },
+    "hr.cv-extraction": {
+      "prompt_version": "1.0.0",
+      "provider": "mock/local-deterministic",
+      "pass_rate": 1.0,
+      "average_score": 1.0,
+      "estimated_cost_usd": 0.0,
+      "total_latency_ms": 0.0
+    },
+    "legal.clause-identification": {
+      "prompt_version": "1.0.0",
+      "provider": "mock/local-deterministic",
+      "pass_rate": 1.0,
+      "average_score": 1.0,
+      "estimated_cost_usd": 0.0,
+      "total_latency_ms": 0.0
+    },
+    "retail.support-response": {
+      "prompt_version": "1.0.0",
+      "provider": "mock/local-deterministic",
+      "pass_rate": 1.0,
+      "average_score": 1.0,
+      "estimated_cost_usd": 0.0,
+      "total_latency_ms": 0.0
+    }
+  }
+}

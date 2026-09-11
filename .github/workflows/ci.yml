@@ -20,7 +20,7 @@ jobs:
       - name: Install project
         run: python -m pip install -e ".[dev]"
       - name: Lint
-        run: python -m ruff check src tests
+        run: python -m ruff check src tests scripts
       - name: Test
         run: python -m pytest
       - name: Phase 2 CLI smoke evaluation

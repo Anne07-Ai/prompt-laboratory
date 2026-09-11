@@ -1,0 +1,7 @@
+schema_version: "1.0"
+minimum_pass_rate: 1.0
+minimum_average_score: 0.95
+maximum_pass_rate_drop: 0.0
+maximum_average_score_drop: 0.02
+maximum_cost_increase_ratio: null
+maximum_latency_increase_ratio: null
