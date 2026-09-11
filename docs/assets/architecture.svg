@@ -1,0 +1,29 @@
+<svg width="1400" height="760" viewBox="0 0 1400 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Prompt Laboratory architecture</title>
+  <desc id="desc">Git-native prompt evaluation lifecycle from authoring to release evidence</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#080B16"/><stop offset="1" stop-color="#101A31"/></linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#8B5CF6"/><stop offset="1" stop-color="#22D3EE"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="14" flood-opacity=".35"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#67E8F9"/></marker>
+  </defs>
+  <rect width="1400" height="760" rx="30" fill="url(#bg)"/>
+  <text x="70" y="75" fill="#F8FAFC" font-family="Inter,Arial" font-size="36" font-weight="800">The Prompt Release Laboratory</text>
+  <text x="70" y="111" fill="#94A3B8" font-family="Inter,Arial" font-size="18">A quality-control plane between prompt authoring and production systems</text>
+  <g font-family="Inter,Arial" filter="url(#shadow)">
+    <g transform="translate(70 175)"><rect width="270" height="180" rx="22" fill="#18152D" stroke="#8B5CF6"/><text x="28" y="42" fill="#C4B5FD" font-size="14" font-weight="700" letter-spacing="2">01 · SPECIMENS</text><text x="28" y="82" fill="#F8FAFC" font-size="25" font-weight="700">Git workspace</text><text x="28" y="117" fill="#94A3B8" font-size="16">Prompt YAML</text><text x="28" y="143" fill="#94A3B8" font-size="16">Datasets · baselines</text></g>
+    <g transform="translate(405 175)"><rect width="270" height="180" rx="22" fill="#17182D" stroke="#A78BFA"/><text x="28" y="42" fill="#DDD6FE" font-size="14" font-weight="700" letter-spacing="2">02 · TEST CHAMBER</text><text x="28" y="82" fill="#F8FAFC" font-size="25" font-weight="700">Evaluation engine</text><text x="28" y="117" fill="#94A3B8" font-size="16">Deterministic checks</text><text x="28" y="143" fill="#94A3B8" font-size="16">Similarity · LLM judge</text></g>
+    <g transform="translate(740 175)"><rect width="270" height="180" rx="22" fill="#10202D" stroke="#22D3EE"/><text x="28" y="42" fill="#67E8F9" font-size="14" font-weight="700" letter-spacing="2">03 · QUALITY GATE</text><text x="28" y="82" fill="#F8FAFC" font-size="25" font-weight="700">Regression control</text><text x="28" y="117" fill="#94A3B8" font-size="16">Version comparison</text><text x="28" y="143" fill="#94A3B8" font-size="16">PR pass / block signal</text></g>
+    <g transform="translate(1075 175)"><rect width="255" height="180" rx="22" fill="#10252B" stroke="#34D399"/><text x="28" y="42" fill="#6EE7B7" font-size="14" font-weight="700" letter-spacing="2">04 · RELEASE</text><text x="28" y="82" fill="#F8FAFC" font-size="25" font-weight="700">Approved prompt</text><text x="28" y="117" fill="#94A3B8" font-size="16">Auditable evidence</text><text x="28" y="143" fill="#94A3B8" font-size="16">Production-ready version</text></g>
+  </g>
+  <g stroke="#67E8F9" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M340 265H395"/><path d="M675 265H730"/><path d="M1010 265H1065"/></g>
+  <g font-family="Inter,Arial" filter="url(#shadow)">
+    <rect x="238" y="455" width="390" height="190" rx="24" fill="#12172A" stroke="#F472B6"/>
+    <text x="275" y="500" fill="#F9A8D4" font-size="14" font-weight="700" letter-spacing="2">EXPERIMENT LEDGER</text><text x="275" y="542" fill="#F8FAFC" font-size="27" font-weight="700">FastAPI + PostgreSQL</text><text x="275" y="578" fill="#94A3B8" font-size="17">Stores validated evaluation reports</text><text x="275" y="608" fill="#94A3B8" font-size="17">Scores · tokens · latency · cost</text>
+    <rect x="772" y="455" width="390" height="190" rx="24" fill="#101D2A" stroke="#22D3EE"/>
+    <text x="809" y="500" fill="#67E8F9" font-size="14" font-weight="700" letter-spacing="2">OBSERVATION DECK</text><text x="809" y="542" fill="#F8FAFC" font-size="27" font-weight="700">Streamlit console</text><text x="809" y="578" fill="#94A3B8" font-size="17">Quality trajectory and release signal</text><text x="809" y="608" fill="#94A3B8" font-size="17">Provider · cost · latency comparison</text>
+  </g>
+  <g stroke="url(#beam)" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M875 355V410H628V445"/><path d="M875 355V410H967V445"/></g>
+  <rect x="70" y="700" width="1260" height="2" fill="url(#beam)" opacity=".7"/>
+  <text x="70" y="729" fill="#64748B" font-family="Inter,Arial" font-size="15">Provider-neutral · Cross-industry · Reproducible · Human-reviewable</text>
+</svg>

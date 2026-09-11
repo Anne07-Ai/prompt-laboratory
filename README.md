@@ -1,52 +1,90 @@
 <div align="center">
 
-# 🧪 Prompt Laboratory
-
-**Treat prompts like production software: versioned, validated, tested, and evaluated before release.**
+![Prompt Laboratory — version, evaluate, compare and release prompts with confidence](docs/assets/laboratory-banner.svg)
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/ci.yml)
-[![Prompt Gate](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/prompt-evaluation.yml?branch=main&style=for-the-badge&label=Prompt%20Gate)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/prompt-evaluation.yml)
-[![Phase](https://img.shields.io/badge/Phase-5%20Product%20Surface-00C2FF?style=for-the-badge)](docs/phase5-api-dashboard.md)
-[![License](https://img.shields.io/badge/License-Apache%202.0-7B61FF?style=for-the-badge)](LICENSE)
+[![Prompt Gate](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/prompt-evaluation.yml?branch=main&style=for-the-badge&label=Prompt%20Gate&color=22d3ee)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/prompt-evaluation.yml)
+[![Release](https://img.shields.io/badge/MVP-v0.6.0-a78bfa?style=for-the-badge)](RELEASE_NOTES.md)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-f472b6?style=for-the-badge)](LICENSE)
+
+**A Git-native quality engineering platform for prompts.**
+
+Create, version, test, evaluate, compare, and approve prompts before they reach production.
 
 </div>
 
-Prompt Laboratory is a Git-native, cross-industry platform for creating, versioning, testing,
-evaluating, and comparing prompts before production release.
+## Why Prompt Laboratory?
 
-> **Current status — Phase 5:** evaluation evidence is available through a versioned FastAPI
-> service, persisted in PostgreSQL, and visualised in a Streamlit experiment console. Phase 4
-> pull-request quality gates remain the release-control layer.
+Prompts often begin as strings inside application code. As teams and models multiply, those strings
+become production dependencies without the controls expected for production software.
 
-## Launch the product surface
+Prompt Laboratory moves quality decisions into a reproducible lifecycle:
+
+- prompt contracts live in reviewable YAML
+- test datasets make behaviour repeatable
+- model adapters make comparisons provider-neutral
+- deterministic and model-based evaluators produce measurable evidence
+- regression policies block unsafe changes in pull requests
+- the experiment console exposes quality, latency, and cost trends
+
+## The release laboratory
+
+![Prompt Laboratory architecture](docs/assets/architecture.svg)
+
+Prompt Laboratory is deliberately a **quality-control plane**, not an agent orchestrator or
+production traffic router. Approved prompt versions can be consumed by any application, agent,
+RAG pipeline, or orchestration platform.
+
+## Start in one command
 
 ```bash
-docker compose up --build
+git clone https://github.com/Anne07-Ai/prompt-laboratory.git
+cd prompt-laboratory
+docker compose up --build -d
 ```
 
-- API and OpenAPI docs: <http://localhost:8000/docs>
-- Experiment dashboard: <http://localhost:8501>
+| Surface | Address | Purpose |
+|---|---|---|
+| Experiment console | <http://localhost:8501> | Quality, cost, latency, and run history |
+| OpenAPI | <http://localhost:8000/docs> | Explore the versioned run API |
+| Health | <http://localhost:8000/health> | Container/service readiness |
 
-The API stores the same validated `EvaluationReport` emitted by local and CI runs. See the
-[Phase 5 architecture decisions](docs/phase5-api-dashboard.md).
+Add a three-version demonstration:
 
-## Quality-gated lifecycle
-
-```mermaid
-flowchart TD
-    C["Prompt or evaluator change"] --> PR["Pull request"]
-    PR --> T["Six offline suites"]
-    T --> B["Compare approved baseline"]
-    B --> G{"Policy passed?"}
-    G -->|Yes| M["Eligible to merge"]
-    G -->|No| X["Block and report evidence"]
+```bash
+docker compose exec api python scripts/seed_demo_runs.py
 ```
 
-The default PR gate is deterministic and credential-free. It tests the whole cross-industry suite
-because shared renderer, provider, or evaluator changes can affect prompts that were not directly
-edited.
+Then refresh the experiment console. See the [90-second demonstration guide](docs/demo.md).
 
-## Run locally
+## What the MVP includes
+
+| Capability | Evidence |
+|---|---|
+| Prompt contracts | Semantic versions, owners, variables, output type/schema |
+| Safe rendering | Strict Jinja2 variables plus Pydantic input validation |
+| Evaluation | Exact match, keywords, JSON Schema, similarity, and LLM-as-judge |
+| Model support | OpenAI, Anthropic, local OpenAI-compatible HTTP, and deterministic mock |
+| Observability | Input/output tokens, latency, estimated cost, score, and pass rate |
+| Comparison | Prompt versions, providers/models, and approved baselines |
+| Release control | Configurable GitHub Actions regression gate and downloadable evidence |
+| Product surface | FastAPI, PostgreSQL/SQLite, Streamlit, and Docker Compose |
+
+## Cross-industry demonstrations
+
+The platform is industry-neutral. Synthetic fixtures demonstrate the same engine across:
+
+- healthcare — patient-friendly explanations
+- finance — document summaries
+- retail — customer-support responses
+- HR — structured CV extraction
+- legal — contract-clause identification
+- education — level-aware concept explanations
+
+These fixtures are demonstrations, not professional advice or validated industry systems.
+
+## Run the quality gate locally
 
 ```bash
 python -m pip install -e ".[dev]"
@@ -56,14 +94,8 @@ python scripts/evaluate_repository.py \
   --baseline baselines/mock-baseline.json
 ```
 
-Outputs:
-
-- one detailed JSON report per prompt
-- machine-readable `gate-results.json`
-- Markdown `summary.md`
-- non-zero exit status when any gate fails
-
-## Regression policy
+The command writes one JSON report per prompt, `gate-results.json`, and `summary.md`. It returns a
+non-zero status when any configured threshold fails.
 
 ```yaml
 minimum_pass_rate: 1.0
@@ -74,39 +106,41 @@ maximum_cost_increase_ratio: null
 maximum_latency_increase_ratio: null
 ```
 
-Absolute thresholds prevent weak baselines from legitimizing poor results. Delta thresholds prevent
-a previously strong prompt from silently becoming worse. Baselines never update themselves.
+Baselines never update themselves. Human review remains part of approval.
 
-See [Phase 4 automation design](docs/phase4-automation.md) and
-[Phase 3 advanced evaluation](docs/phase3-advanced-evaluation.md).
+## Repository map
 
-## Product capabilities
+```text
+prompts/       versioned YAML prompt contracts
+datasets/      repeatable cross-industry test cases
+baselines/     human-approved comparison points
+configs/       pricing and regression policies
+src/           evaluation, providers, API, and persistence
+dashboard/     Streamlit experiment console
+scripts/       repository gate and demo automation
+tests/         unit, integration, and API lifecycle tests
+docs/          architecture, phases, and demonstration guide
+```
 
-- typed, versioned YAML prompt contracts
-- strict Jinja2 rendering and runtime input validation
-- cross-industry YAML test datasets
-- OpenAI, Anthropic, local, and mock providers
-- exact match, keywords, JSON Schema, similarity, and LLM-as-judge
-- token, latency, estimated-cost, prompt-version, and model comparison
-- pull-request quality gates and structured regression evidence
-- FastAPI run history, PostgreSQL persistence, and Streamlit observability dashboard
-- reproducible API and dashboard containers with Docker Compose
-
-## Roadmap
+## Development journey
 
 - [x] Phase 1 — prompt contracts and strict rendering
 - [x] Phase 2 — offline evaluation engine and structured reports
 - [x] Phase 3 — providers, advanced evaluation, pricing, and comparison
 - [x] Phase 4 — pull-request automation and regression gates
 - [x] Phase 5 — FastAPI, PostgreSQL, Streamlit, and Docker
-- [ ] Phase 6 — screenshots, demonstration, documentation, and v0.1 release
+- [x] Phase 6 — product identity, architecture, demo, and open-source MVP documentation
 
-## Safety boundaries
+Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
+[Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md)
 
-Healthcare, finance, HR, and legal fixtures are synthetic demonstrations, not validated
-professional systems. Secrets are never stored in prompt or dataset YAML. LLM-as-judge supplements
-deterministic checks and never replaces them.
+## Safety and release boundaries
 
-## License
+- Provider secrets belong in environment/secret management, never prompt or dataset YAML.
+- LLM-as-judge supplements deterministic checks; it does not replace them.
+- The committed PostgreSQL password is local-development-only.
+- Authentication, hosted workspaces, live A/B testing, deployment, and billing remain future scope.
 
-Apache-2.0.
+## Release and license
+
+Read the [v0.6.0 release notes](RELEASE_NOTES.md). Licensed under [Apache-2.0](LICENSE).
