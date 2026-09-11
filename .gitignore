@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Prompt Laboratory local state
+prompt-lab.db
+reports/

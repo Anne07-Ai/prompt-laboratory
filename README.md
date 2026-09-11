@@ -6,7 +6,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/ci.yml)
 [![Prompt Gate](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/prompt-evaluation.yml?branch=main&style=for-the-badge&label=Prompt%20Gate)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/prompt-evaluation.yml)
-[![Phase](https://img.shields.io/badge/Phase-4%20Automation-8A2BE2?style=for-the-badge)](docs/phase4-automation.md)
+[![Phase](https://img.shields.io/badge/Phase-5%20Product%20Surface-00C2FF?style=for-the-badge)](docs/phase5-api-dashboard.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-7B61FF?style=for-the-badge)](LICENSE)
 
 </div>
@@ -14,9 +14,21 @@
 Prompt Laboratory is a Git-native, cross-industry platform for creating, versioning, testing,
 evaluating, and comparing prompts before production release.
 
-> **Current status — Phase 4:** prompt changes are automatically evaluated on pull requests.
-> Configurable quality gates compare current results with approved baselines and produce auditable
-> reports, GitHub summaries, and downloadable evidence.
+> **Current status — Phase 5:** evaluation evidence is available through a versioned FastAPI
+> service, persisted in PostgreSQL, and visualised in a Streamlit experiment console. Phase 4
+> pull-request quality gates remain the release-control layer.
+
+## Launch the product surface
+
+```bash
+docker compose up --build
+```
+
+- API and OpenAPI docs: <http://localhost:8000/docs>
+- Experiment dashboard: <http://localhost:8501>
+
+The API stores the same validated `EvaluationReport` emitted by local and CI runs. See the
+[Phase 5 architecture decisions](docs/phase5-api-dashboard.md).
 
 ## Quality-gated lifecycle
 
@@ -77,6 +89,8 @@ See [Phase 4 automation design](docs/phase4-automation.md) and
 - exact match, keywords, JSON Schema, similarity, and LLM-as-judge
 - token, latency, estimated-cost, prompt-version, and model comparison
 - pull-request quality gates and structured regression evidence
+- FastAPI run history, PostgreSQL persistence, and Streamlit observability dashboard
+- reproducible API and dashboard containers with Docker Compose
 
 ## Roadmap
 
@@ -84,7 +98,7 @@ See [Phase 4 automation design](docs/phase4-automation.md) and
 - [x] Phase 2 — offline evaluation engine and structured reports
 - [x] Phase 3 — providers, advanced evaluation, pricing, and comparison
 - [x] Phase 4 — pull-request automation and regression gates
-- [ ] Phase 5 — FastAPI, PostgreSQL, Streamlit, and Docker
+- [x] Phase 5 — FastAPI, PostgreSQL, Streamlit, and Docker
 - [ ] Phase 6 — screenshots, demonstration, documentation, and v0.1 release
 
 ## Safety boundaries
