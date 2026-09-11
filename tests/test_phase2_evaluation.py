@@ -8,7 +8,6 @@ from prompt_laboratory.evaluation import run_evaluation
 from prompt_laboratory.loader import load_prompt
 from prompt_laboratory.providers.mock import MockProvider
 
-
 ROOT = Path(__file__).parents[1]
 DATASETS = sorted((ROOT / "datasets").glob("*/*.yaml"))
 
