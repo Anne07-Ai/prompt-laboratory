@@ -12,6 +12,15 @@ class PromptRenderError(ValueError):
     """Raised when a prompt contract or runtime input is invalid."""
 
 
+_TYPE_LABELS = {
+    InputType.STRING: "a string",
+    InputType.INTEGER: "an integer",
+    InputType.NUMBER: "a number",
+    InputType.BOOLEAN: "a boolean",
+    InputType.OBJECT: "an object",
+    InputType.ARRAY: "an array",
+}
+
 _PYTHON_TYPES: dict[InputType, type | tuple[type, ...]] = {
     InputType.STRING: str,
     InputType.INTEGER: int,
@@ -67,7 +76,7 @@ class PromptRenderer:
                 raise PromptRenderError(f"Variable {name!r} must be a number")
             if value is not None and not isinstance(value, expected):
                 raise PromptRenderError(
-                    f"Variable {name!r} must be {definition.type.value}; "
+                    f"Variable {name!r} must be {_TYPE_LABELS[definition.type]}; "
                     f"received {type(value).__name__}"
                 )
             resolved[name] = value
