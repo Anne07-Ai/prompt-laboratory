@@ -14,7 +14,6 @@ from prompt_laboratory.providers.base import ProviderRequest
 from prompt_laboratory.providers.mock import MockProvider
 from prompt_laboratory.providers.openai import OpenAIProvider
 
-
 ROOT = Path(__file__).parents[1]
 
 
