@@ -21,6 +21,7 @@ class ProviderResponse(BaseModel):
     latency_ms: float = Field(ge=0)
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)
+    estimated_cost_usd: float = Field(default=0.0, ge=0)
 
 
 class ModelProvider(Protocol):

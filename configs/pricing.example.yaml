@@ -1,0 +1,12 @@
+schema_version: "1.0"
+# Illustrative values only. Provider pricing changes over time; verify before real cost reporting.
+models:
+  openai/example-model:
+    input_per_million_usd: 1.00
+    output_per_million_usd: 4.00
+  anthropic/example-model:
+    input_per_million_usd: 3.00
+    output_per_million_usd: 15.00
+  local/example-model:
+    input_per_million_usd: 0.00
+    output_per_million_usd: 0.00

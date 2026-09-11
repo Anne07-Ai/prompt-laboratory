@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "prompt-laboratory"
-version = "0.2.0"
+version = "0.3.0"
 description = "Git-native prompt definition, validation, and evaluation platform."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,6 +18,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+openai = ["openai>=1.40,<3"]
+anthropic = ["anthropic>=0.34,<1"]
+providers = [
+  "openai>=1.40,<3",
+  "anthropic>=0.34,<1",
+]
 dev = [
   "pytest>=8.2,<9",
   "ruff>=0.6,<1",

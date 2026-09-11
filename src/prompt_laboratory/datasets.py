@@ -1,4 +1,4 @@
-"""Validated local evaluation-dataset contracts."""
+"""Validated evaluation-dataset contracts."""
 
 from pathlib import Path
 from typing import Any
@@ -11,17 +11,32 @@ class DatasetLoadError(ValueError):
     """Raised when an evaluation dataset cannot be loaded."""
 
 
+class JudgeExpectation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rubric: str = Field(min_length=1)
+    minimum_score: float = Field(default=0.7, ge=0, le=1)
+
+
 class ExpectedOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     exact_match: str | None = None
     keywords: list[str] = Field(default_factory=list)
     case_sensitive: bool = False
+    similarity_reference: str | None = None
+    minimum_similarity: float = Field(default=0.7, ge=0, le=1)
+    judge: JudgeExpectation | None = None
 
     @model_validator(mode="after")
     def require_expectation(self) -> "ExpectedOutput":
-        if self.exact_match is None and not self.keywords:
-            raise ValueError("at least one deterministic expectation is required")
+        if (
+            self.exact_match is None
+            and not self.keywords
+            and self.similarity_reference is None
+            and self.judge is None
+        ):
+            raise ValueError("at least one evaluation expectation is required")
         return self
 
 
@@ -30,7 +45,7 @@ class TestCase(BaseModel):
 
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
     inputs: dict[str, Any]
-    mock_response: str
+    mock_response: str | None = None
     expected: ExpectedOutput
 
 
@@ -39,7 +54,7 @@ class TestDataset(BaseModel):
 
     schema_version: str = Field(pattern=r"^1\.\d+$")
     prompt_id: str
-    prompt_version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
+    prompt_version: str = Field(pattern=r"^(\d+\.\d+\.\d+|\*)$")
     cases: list[TestCase] = Field(min_length=1)
 
     @model_validator(mode="after")

@@ -1,4 +1,4 @@
-"""Exact-match, keyword, and JSON-Schema evaluators."""
+"""Exact-match, keyword, JSON-Schema, and similarity evaluators."""
 
 import json
 import re
@@ -8,6 +8,7 @@ from jsonschema import ValidationError, validate
 
 from prompt_laboratory.datasets import ExpectedOutput
 from prompt_laboratory.evaluators.models import EvaluationResult
+from prompt_laboratory.evaluators.similarity import token_similarity
 from prompt_laboratory.models import OutputDefinition, OutputType
 
 
@@ -56,6 +57,15 @@ def evaluate_response(
                     "matched": matched,
                     "missing": [item for item in expected.keywords if item not in matched],
                 },
+            )
+        )
+
+    if expected.similarity_reference is not None:
+        results.append(
+            token_similarity(
+                response,
+                expected.similarity_reference,
+                expected.minimum_similarity,
             )
         )
 
