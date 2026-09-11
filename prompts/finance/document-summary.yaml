@@ -1,0 +1,26 @@
+schema_version: "1.0"
+id: finance.document-summary
+version: "1.0.0"
+name: Financial document summary
+description: Produces a factual summary from supplied financial text.
+industry: finance
+task: summarisation
+owners: [prompt-laboratory]
+tags: [finance, summarisation]
+template: |
+  Summarise the financial document below for {{ audience }}.
+  Highlight reported figures, dates, risks, and uncertainties.
+  Do not provide investment advice or infer facts absent from the document.
+
+  Document:
+  {{ document }}
+variables:
+  audience:
+    type: string
+    description: Intended reader of the summary.
+  document:
+    type: string
+    description: Financial source text.
+output:
+  type: text
+  description: A concise, source-grounded financial summary.

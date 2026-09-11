@@ -1,0 +1,26 @@
+schema_version: "1.0"
+id: legal.clause-identification
+version: "1.0.0"
+name: Contract clause identification
+description: Identifies requested clause categories without providing legal advice.
+industry: legal
+task: classification
+owners: [prompt-laboratory]
+tags: [legal, contracts, classification]
+template: |
+  Identify passages matching these clause categories: {{ clause_categories | join(", ") }}.
+  Quote the relevant supplied passage and state when a category is not found.
+  Do not provide legal advice or infer missing contractual terms.
+
+  Contract:
+  {{ contract_text }}
+variables:
+  clause_categories:
+    type: array
+    description: Clause categories to locate.
+  contract_text:
+    type: string
+    description: Contract text to inspect.
+output:
+  type: text
+  description: Source-grounded clause locations with clear missing-category indicators.

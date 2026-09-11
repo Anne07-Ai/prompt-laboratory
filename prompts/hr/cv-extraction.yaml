@@ -1,0 +1,35 @@
+schema_version: "1.0"
+id: hr.cv-extraction
+version: "1.0.0"
+name: CV information extraction
+description: Extracts job-relevant facts from CV text into a stable JSON structure.
+industry: hr
+task: structured-extraction
+owners: [prompt-laboratory]
+tags: [hr, extraction, json]
+template: |
+  Extract only explicitly stated information from the CV below.
+  Return valid JSON matching the required output schema. Do not infer protected attributes.
+
+  CV:
+  {{ cv_text }}
+variables:
+  cv_text:
+    type: string
+    description: CV text to process.
+output:
+  type: json
+  description: Structured job-relevant CV information.
+  schema:
+    type: object
+    required: [skills, experience_years, qualifications]
+    properties:
+      skills:
+        type: array
+        items: {type: string}
+      experience_years:
+        type: [number, "null"]
+      qualifications:
+        type: array
+        items: {type: string}
+    additionalProperties: false

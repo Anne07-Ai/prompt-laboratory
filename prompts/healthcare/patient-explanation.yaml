@@ -1,0 +1,29 @@
+schema_version: "1.0"
+id: healthcare.patient-explanation
+version: "1.0.0"
+name: Patient-friendly explanation
+description: Rewrites supplied clinical information in accessible language without adding advice.
+industry: healthcare
+task: controlled-explanation
+owners: [prompt-laboratory]
+tags: [healthcare, explanation, safety]
+template: |
+  Explain the following clinical information for a patient aged {{ patient_age }}.
+  Use plain language at approximately a {{ reading_level }} reading level.
+  Do not diagnose, prescribe, or add facts. Encourage consultation with a qualified professional.
+
+  Clinical information:
+  {{ clinical_information }}
+variables:
+  patient_age:
+    type: integer
+    description: Age used to adapt communication style.
+  reading_level:
+    type: string
+    description: Requested reading level.
+  clinical_information:
+    type: string
+    description: Source information to explain.
+output:
+  type: text
+  description: A faithful, patient-friendly explanation with an appropriate disclaimer.

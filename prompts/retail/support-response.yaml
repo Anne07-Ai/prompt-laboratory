@@ -1,0 +1,31 @@
+schema_version: "1.0"
+id: retail.support-response
+version: "1.0.0"
+name: Retail support response
+description: Drafts a helpful response based on a customer issue and supplied policy.
+industry: retail
+task: customer-support
+owners: [prompt-laboratory]
+tags: [retail, customer-support]
+template: |
+  Draft a friendly customer-support response in a {{ tone }} tone.
+  Use only the supplied policy when proposing a resolution.
+
+  Customer issue:
+  {{ customer_issue }}
+
+  Policy:
+  {{ policy }}
+variables:
+  tone:
+    type: string
+    description: Desired response tone.
+  customer_issue:
+    type: string
+    description: Customer's reported issue.
+  policy:
+    type: string
+    description: Applicable business policy.
+output:
+  type: text
+  description: A policy-grounded customer-support response.

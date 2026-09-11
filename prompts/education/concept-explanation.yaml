@@ -1,0 +1,22 @@
+schema_version: "1.0"
+id: education.concept-explanation
+version: "1.0.0"
+name: Level-adapted concept explanation
+description: Explains a concept for a specified learning level.
+industry: education
+task: explanation
+owners: [prompt-laboratory]
+tags: [education, explanation]
+template: |
+  Explain {{ concept }} to a learner at {{ learning_level }} level.
+  Include one simple example and two short questions the learner can use to check understanding.
+variables:
+  concept:
+    type: string
+    description: Concept to explain.
+  learning_level:
+    type: string
+    description: Target learner level.
+output:
+  type: text
+  description: A level-appropriate explanation, example, and two check questions.
