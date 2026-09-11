@@ -63,7 +63,7 @@ if not runs:
     st.stop()
 
 frame = pd.DataFrame(runs)
-frame["created_at"] = pd.to_datetime(frame["created_at"], utc=True)
+frame["created_at"] = pd.to_datetime(frame["created_at"], utc=True, format="mixed")
 
 with st.sidebar:
     st.header("Experiment filters")
