@@ -1,0 +1,12 @@
+schema_version: "1.0"
+prompt_id: healthcare.patient-explanation
+prompt_version: "1.0.0"
+cases:
+  - id: blood-pressure-basics
+    inputs:
+      patient_age: 45
+      reading_level: general
+      clinical_information: Blood pressure measures the force of blood against artery walls.
+    mock_response: Blood pressure measures how strongly blood pushes against artery walls. This explanation is not a diagnosis; please discuss questions with a qualified healthcare professional.
+    expected:
+      keywords: [blood pressure, artery walls, healthcare professional]

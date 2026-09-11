@@ -1,0 +1,11 @@
+schema_version: "1.0"
+prompt_id: finance.document-summary
+prompt_version: "1.0.0"
+cases:
+  - id: quarterly-summary
+    inputs:
+      audience: business stakeholder
+      document: Revenue was GBP 12 million for Q2. The report identifies currency volatility as a risk.
+    mock_response: Q2 revenue was GBP 12 million. The report identifies currency volatility as a risk and does not provide investment advice.
+    expected:
+      keywords: [Q2, GBP 12 million, currency volatility]

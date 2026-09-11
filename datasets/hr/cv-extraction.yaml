@@ -1,0 +1,10 @@
+schema_version: "1.0"
+prompt_id: hr.cv-extraction
+prompt_version: "1.0.0"
+cases:
+  - id: structured-cv
+    inputs:
+      cv_text: Alex lists Python and SQL, five years of experience, and a BSc in Computer Science.
+    mock_response: '{"skills":["Python","SQL"],"experience_years":5,"qualifications":["BSc Computer Science"]}'
+    expected:
+      keywords: [Python, SQL]

@@ -1,0 +1,11 @@
+schema_version: "1.0"
+prompt_id: education.concept-explanation
+prompt_version: "1.0.0"
+cases:
+  - id: photosynthesis-primary
+    inputs:
+      concept: photosynthesis
+      learning_level: primary school
+    mock_response: Plants use sunlight, water, and carbon dioxide to make food through photosynthesis. Example: a leaf uses sunlight like a tiny kitchen. Questions: What provides the energy? What food does the plant make?
+    expected:
+      keywords: [plants, sunlight, food, questions]

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "prompt-laboratory"
-version = "0.1.0"
+version = "0.2.0"
 description = "Git-native prompt definition, validation, and evaluation platform."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,6 +12,7 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Lakshmi Anne" }]
 dependencies = [
   "jinja2>=3.1,<4",
+  "jsonschema>=4.23,<5",
   "pydantic>=2.8,<3",
   "pyyaml>=6.0,<7",
 ]
@@ -21,6 +22,9 @@ dev = [
   "pytest>=8.2,<9",
   "ruff>=0.6,<1",
 ]
+
+[project.scripts]
+prompt-lab = "prompt_laboratory.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/prompt_laboratory"]

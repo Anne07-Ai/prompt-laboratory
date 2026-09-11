@@ -1,0 +1,12 @@
+schema_version: "1.0"
+prompt_id: retail.support-response
+prompt_version: "1.0.0"
+cases:
+  - id: damaged-delivery
+    inputs:
+      tone: empathetic
+      customer_issue: The delivered mug arrived cracked.
+      policy: Damaged items may be replaced when reported within 30 days.
+    mock_response: We are sorry your mug arrived cracked. As it was reported within 30 days, the policy allows a replacement.
+    expected:
+      keywords: [sorry, 30 days, replacement]

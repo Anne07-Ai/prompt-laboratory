@@ -1,0 +1,11 @@
+schema_version: "1.0"
+prompt_id: legal.clause-identification
+prompt_version: "1.0.0"
+cases:
+  - id: termination-present
+    inputs:
+      clause_categories: [termination, confidentiality]
+      contract_text: Either party may terminate with 30 days written notice. No confidentiality clause is provided.
+    mock_response: 'Termination: "Either party may terminate with 30 days written notice." Confidentiality: not found. This is clause identification, not legal advice.'
+    expected:
+      keywords: [termination, 30 days, confidentiality, not found]
