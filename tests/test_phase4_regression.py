@@ -9,7 +9,6 @@ from prompt_laboratory.regression import (
 )
 from prompt_laboratory.repository_gate import run_repository_gate
 
-
 ROOT = Path(__file__).parents[1]
 
 
