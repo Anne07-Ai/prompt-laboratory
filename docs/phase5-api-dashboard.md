@@ -14,6 +14,8 @@ Phase 5 turns offline evaluation evidence into a queryable product surface.
   can replace it without migrating storage.
 - **No provider secrets in the UI or database.** Evaluation execution remains outside this first
   Phase 5 service boundary.
+- **A distinct experiment-console identity.** Violet/cyan signals, release-state cards, filters,
+  gauges, and responsive charts make results readable without reusing CGAF-Tune's visual style.
 
 ## Service map
 
