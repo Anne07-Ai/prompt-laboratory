@@ -5,7 +5,6 @@ import pytest
 from prompt_laboratory.loader import PromptLoadError, load_prompt
 from prompt_laboratory.renderer import PromptRenderer, PromptRenderError
 
-
 ROOT = Path(__file__).parents[1]
 PROMPTS = sorted((ROOT / "prompts").glob("*/*.yaml"))
 
