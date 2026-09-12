@@ -79,6 +79,13 @@ class PromptRenderer:
                     f"Variable {name!r} must be {_TYPE_LABELS[definition.type]}; "
                     f"received {type(value).__name__}"
                 )
+            if (
+                definition.required
+                and definition.type == InputType.STRING
+                and isinstance(value, str)
+                and not value.strip()
+            ):
+                raise PromptRenderError(f"Variable {name!r} cannot be empty")
             resolved[name] = value
 
         try:
