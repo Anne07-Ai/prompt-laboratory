@@ -38,11 +38,18 @@ class OpenAIProvider:
             temperature=self._temperature,
         )
         usage = response.usage
+        input_tokens = usage.input_tokens
+        output_tokens = usage.output_tokens
+        # GPT-4.1 mini standard text rates verified against OpenAI's model page.
+        estimated_cost = 0.0
+        if self._model.startswith("gpt-4.1-mini"):
+            estimated_cost = (input_tokens * 0.40 + output_tokens * 1.60) / 1_000_000
         return ProviderResponse(
             text=response.output_text,
             provider="openai",
             model=self._model,
             latency_ms=(perf_counter() - started) * 1000,
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            estimated_cost_usd=estimated_cost,
         )

@@ -1,6 +1,7 @@
 """Interactive prompt discovery, rendering, and provider execution."""
 
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,15 @@ from prompt_laboratory.models import PromptDefinition
 from prompt_laboratory.providers import AnthropicProvider, OpenAIProvider
 from prompt_laboratory.providers.base import ProviderRequest, ProviderResponse
 from prompt_laboratory.renderer import PromptRenderer
+
+
+class ProviderExecutionError(RuntimeError):
+    """Safe provider failure that can be shown without leaking credentials."""
+
+    def __init__(self, provider: str, message: str, code: str = "provider_error") -> None:
+        super().__init__(message)
+        self.provider = provider
+        self.code = code
 
 
 class PromptCatalog:
@@ -82,7 +92,57 @@ def execute_prompt(
     else:
         raise ValueError(f"Unsupported provider: {provider_id}")
 
-    response = provider.generate(
-        ProviderRequest(case_id="interactive-workbench", prompt=rendered)
-    )
+    try:
+        response = provider.generate(
+            ProviderRequest(case_id="interactive-workbench", prompt=rendered)
+        )
+    except Exception as exc:
+        error_code = getattr(exc, "code", None)
+        status_code = getattr(exc, "status_code", None)
+        if status_code == 429:
+            code = "quota_exceeded" if error_code == "credit_balance_exhausted" else "rate_limited"
+            message = (
+                "This provider has no API credit remaining. Add credit and try again."
+                if code == "quota_exceeded"
+                else "This provider is temporarily rate limited. Try again shortly."
+            )
+        elif status_code in {401, 403}:
+            code, message = "authentication_failed", "The provider API key is invalid or unauthorized."
+        else:
+            code, message = "provider_error", "The model provider could not complete this request."
+        raise ProviderExecutionError(provider_id, message, code) from exc
     return rendered, response
+
+
+def compare_prompt(
+    prompt: PromptDefinition,
+    values: dict[str, Any],
+    provider_ids: list[str],
+) -> tuple[str, list[dict[str, Any]]]:
+    """Execute one rendered prompt concurrently across distinct providers."""
+    unique_ids = list(dict.fromkeys(provider_ids))
+    if len(unique_ids) < 2:
+        raise ValueError("Select at least two different providers")
+    rendered = PromptRenderer().render(prompt, values)
+    results: list[dict[str, Any]] = []
+
+    def run(provider_id: str) -> ProviderResponse:
+        return execute_prompt(prompt, values, provider_id)[1]
+
+    with ThreadPoolExecutor(max_workers=min(len(unique_ids), 4)) as pool:
+        futures = {pool.submit(run, provider_id): provider_id for provider_id in unique_ids}
+        for future in as_completed(futures):
+            provider_id = futures[future]
+            try:
+                response = future.result()
+                results.append({"provider_id": provider_id, "result": response.model_dump(), "error": None})
+            except ProviderExecutionError as exc:
+                results.append({
+                    "provider_id": provider_id,
+                    "result": None,
+                    "error": {"code": exc.code, "message": str(exc)},
+                })
+
+    order = {provider_id: index for index, provider_id in enumerate(unique_ids)}
+    results.sort(key=lambda item: order[item["provider_id"]])
+    return rendered, results
