@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
 from prompt_laboratory.api import create_app
+from prompt_laboratory.providers.base import ProviderResponse
+from prompt_laboratory.workbench import PromptCatalog, ProviderExecutionError, compare_prompt
 
 PROMPT = """\
 schema_version: "1.0"
@@ -83,3 +85,59 @@ def test_workbench_rejects_invalid_input_and_unknown_prompt(tmp_path) -> None:
         )
         assert empty.status_code == 422
         assert empty.json()["detail"] == "Variable 'name' cannot be empty"
+
+
+def test_workbench_compares_multiple_providers(tmp_path, monkeypatch) -> None:
+    prompts = tmp_path / "prompts"
+    prompts.mkdir()
+    (prompts / "greeting.yaml").write_text(PROMPT, encoding="utf-8")
+    prompt = PromptCatalog(prompts).get("demo.greeting")
+    assert prompt is not None
+
+    def fake_execute(prompt, values, provider_id):
+        rendered = f"Hello {values['name']}"
+        return rendered, ProviderResponse(
+            text=f"Response from {provider_id}",
+            provider=provider_id.split("/")[0],
+            model=provider_id.split("/")[1],
+            latency_ms=12,
+            input_tokens=2,
+            output_tokens=4,
+        )
+
+    monkeypatch.setattr("prompt_laboratory.workbench.execute_prompt", fake_execute)
+    rendered, comparisons = compare_prompt(
+        prompt,
+        {"name": "Lakshmi"},
+        ["mock/one", "mock/two"],
+    )
+    assert rendered == "Hello Lakshmi"
+    assert [item["provider_id"] for item in comparisons] == ["mock/one", "mock/two"]
+    assert all(item["error"] is None for item in comparisons)
+
+
+def test_workbench_returns_safe_provider_error(tmp_path, monkeypatch) -> None:
+    prompts = tmp_path / "prompts"
+    prompts.mkdir()
+    (prompts / "greeting.yaml").write_text(PROMPT, encoding="utf-8")
+    app = create_app(f"sqlite:///{tmp_path / 'runs.db'}", prompts)
+
+    def fail(*_args, **_kwargs):
+        raise ProviderExecutionError(
+            "openai/gpt-4.1-mini",
+            "This provider has no API credit remaining. Add credit and try again.",
+            "quota_exceeded",
+        )
+
+    monkeypatch.setattr("prompt_laboratory.api.execute_prompt", fail)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/workbench/execute",
+            json={
+                "prompt_id": "demo.greeting",
+                "variables": {"name": "Lakshmi"},
+                "provider": "openai/gpt-4.1-mini",
+            },
+        )
+    assert response.status_code == 429
+    assert response.json()["detail"]["code"] == "quota_exceeded"

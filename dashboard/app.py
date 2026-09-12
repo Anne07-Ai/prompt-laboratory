@@ -59,7 +59,9 @@ def fetch_json(path: str) -> list[dict[str, object]]:
 
 
 st.subheader("Interactive prompt workbench")
-st.caption("Choose a Git-versioned prompt, provide typed variables, and inspect the rendered request and model output.")
+st.caption(
+    "Run one Git-versioned prompt against a single model or compare providers side by side."
+)
 
 try:
     prompt_catalog = fetch_json("/api/v1/prompts")
@@ -78,6 +80,13 @@ if prompt_catalog:
     selected_prompt = prompt_by_label[selected_label]
     available_providers = [item for item in provider_catalog if item["configured"]]
     provider_by_label = {str(item["label"]): item for item in available_providers}
+
+    workbench_mode = st.radio(
+        "Experiment mode",
+        ["Single run", "Compare models"],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
 
     with st.form("workbench-form"):
         left, right = st.columns([1.2, 1])
@@ -100,47 +109,104 @@ if prompt_catalog:
                 else:
                     values[name] = st.text_area(label, value=str(default or ""))
         with right:
-            selected_provider_label = st.selectbox("Model provider", list(provider_by_label))
+            if workbench_mode == "Single run":
+                selected_provider_labels = [
+                    st.selectbox("Model provider", list(provider_by_label))
+                ]
+            else:
+                defaults = list(provider_by_label)[: min(2, len(provider_by_label))]
+                selected_provider_labels = st.multiselect(
+                    "Models to compare",
+                    list(provider_by_label),
+                    default=defaults,
+                    help="Each selected provider receives exactly the same rendered prompt.",
+                )
             st.code(selected_prompt["template"], language="jinja2")
-        submitted = st.form_submit_button("Run experiment", type="primary", use_container_width=True)
+        button_label = "Compare models" if workbench_mode == "Compare models" else "Run experiment"
+        submitted = st.form_submit_button(button_label, type="primary", use_container_width=True)
 
     if submitted:
         try:
             for name, definition in selected_prompt["variables"].items():
                 if definition["type"] in {"object", "array"}:
                     values[name] = json.loads(str(values[name]))
-            result = httpx.post(
-                f"{API_URL}/api/v1/workbench/execute",
-                json={
+            provider_ids = [provider_by_label[label]["id"] for label in selected_provider_labels]
+            if workbench_mode == "Compare models":
+                if len(provider_ids) < 2:
+                    raise ValueError("Select at least two models to compare")
+                path = "/api/v1/workbench/compare"
+                payload = {
                     "prompt_id": selected_prompt["id"],
                     "variables": values,
-                    "provider": provider_by_label[selected_provider_label]["id"],
-                },
-                timeout=90,
-            )
+                    "providers": provider_ids,
+                }
+            else:
+                path = "/api/v1/workbench/execute"
+                payload = {
+                    "prompt_id": selected_prompt["id"],
+                    "variables": values,
+                    "provider": provider_ids[0],
+                }
+            result = httpx.post(f"{API_URL}{path}", json=payload, timeout=120)
             result.raise_for_status()
-            st.session_state["workbench_result"] = result.json()
+            st.session_state["workbench_result"] = {
+                "mode": workbench_mode,
+                "payload": result.json(),
+            }
         except json.JSONDecodeError as exc:
             st.error(f"A structured variable contains invalid JSON: {exc}")
-        except httpx.HTTPStatusError as exc:
-            try:
-                detail = exc.response.json().get("detail", str(exc))
-            except ValueError:
+        except (ValueError, httpx.HTTPStatusError) as exc:
+            if isinstance(exc, ValueError):
                 detail = str(exc)
+            else:
+                try:
+                    detail = exc.response.json().get("detail", str(exc))
+                    if isinstance(detail, dict):
+                        detail = detail.get("message", str(detail))
+                except ValueError:
+                    detail = str(exc)
             st.error(f"Experiment failed: {detail}")
         except httpx.HTTPError as exc:
             st.error(f"Experiment API unavailable: {exc}")
 
-    if result := st.session_state.get("workbench_result"):
-        rendered, output = st.columns(2)
-        rendered.markdown("#### Rendered prompt")
-        rendered.code(result["rendered_prompt"])
-        output.markdown("#### Model output")
-        output.write(result["output"])
-        st.caption(
-            f"{result['provider']}/{result['model']} · {result['latency_ms']:.0f} ms · "
-            f"{result['input_tokens']} input tokens · {result['output_tokens']} output tokens"
-        )
+    if stored := st.session_state.get("workbench_result"):
+        result = stored["payload"]
+        st.markdown("#### Rendered prompt")
+        st.code(result["rendered_prompt"])
+        if stored["mode"] == "Single run":
+            st.markdown("#### Model output")
+            st.write(result["output"])
+            st.caption(
+                f"{result['provider']}/{result['model']} · {result['latency_ms']:.0f} ms · "
+                f"{result['input_tokens']} input tokens · "
+                f"{result['output_tokens']} output tokens"
+            )
+        else:
+            st.markdown("#### Comparison results")
+            comparisons = result["comparisons"]
+            columns = st.columns(len(comparisons))
+            for column, comparison in zip(columns, comparisons, strict=True):
+                with column, st.container(border=True):
+                    st.markdown(f"##### {comparison['provider_id']}")
+                    if comparison["error"]:
+                        st.error(comparison["error"]["message"])
+                    else:
+                        model_result = comparison["result"]
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Latency", f"{model_result['latency_ms']:.0f} ms")
+                        m2.metric(
+                            "Tokens",
+                            f"{model_result['input_tokens'] + model_result['output_tokens']}",
+                        )
+                        cost = model_result["estimated_cost_usd"]
+                        cost_label = (
+                            f"${cost:.6f}"
+                            if cost > 0 or comparison["provider_id"] == "mock/echo"
+                            else "Not configured"
+                        )
+                        m3.metric("Cost", cost_label)
+                        st.markdown("**Output**")
+                        st.write(model_result["text"])
 
 st.divider()
 

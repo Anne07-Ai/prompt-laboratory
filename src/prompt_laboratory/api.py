@@ -11,7 +11,13 @@ from pydantic import BaseModel, ConfigDict
 
 from prompt_laboratory.evaluation import EvaluationReport
 from prompt_laboratory.storage import RunStore
-from prompt_laboratory.workbench import PromptCatalog, execute_prompt, provider_options
+from prompt_laboratory.workbench import (
+    PromptCatalog,
+    ProviderExecutionError,
+    compare_prompt,
+    execute_prompt,
+    provider_options,
+)
 
 
 class RunCreated(BaseModel):
@@ -40,6 +46,21 @@ class WorkbenchResponse(BaseModel):
     estimated_cost_usd: float
 
 
+class ComparisonRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    prompt_id: str
+    variables: dict[str, Any]
+    providers: list[str]
+
+
+class ComparisonResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    prompt_id: str
+    prompt_version: str
+    rendered_prompt: str
+    comparisons: list[dict[str, Any]]
+
+
 def create_app(
     database_url: str | None = None,
     prompts_dir: str | Path | None = None,
@@ -54,7 +75,7 @@ def create_app(
 
     app = FastAPI(
         title="Prompt Laboratory API",
-        version="0.7.0",
+        version="0.8.0",
         description="Persistent evaluation-run API for prompt quality engineering.",
         lifespan=lifespan,
     )
@@ -85,6 +106,14 @@ def create_app(
             raise HTTPException(status_code=404, detail="Prompt not found")
         try:
             rendered, generated = execute_prompt(prompt, request.variables, request.provider)
+        except ProviderExecutionError as exc:
+            error_status = (
+                429 if exc.code in {"quota_exceeded", "rate_limited"} else 502
+            )
+            raise HTTPException(
+                status_code=error_status,
+                detail={"code": exc.code, "message": str(exc)},
+            ) from exc
         except (ValueError, RuntimeError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return WorkbenchResponse(
@@ -98,6 +127,26 @@ def create_app(
             input_tokens=generated.input_tokens,
             output_tokens=generated.output_tokens,
             estimated_cost_usd=generated.estimated_cost_usd,
+        )
+
+    @app.post("/api/v1/workbench/compare", response_model=ComparisonResponse, tags=["workbench"])
+    def compare_workbench(request: ComparisonRequest) -> ComparisonResponse:
+        prompt = catalog.get(request.prompt_id)
+        if prompt is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        configured = {item["id"] for item in provider_options() if item["configured"]}
+        unavailable = [provider for provider in request.providers if provider not in configured]
+        if unavailable:
+            raise HTTPException(status_code=422, detail=f"Provider not configured: {unavailable[0]}")
+        try:
+            rendered, comparisons = compare_prompt(prompt, request.variables, request.providers)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return ComparisonResponse(
+            prompt_id=prompt.id,
+            prompt_version=prompt.version,
+            rendered_prompt=rendered,
+            comparisons=comparisons,
         )
 
     @app.post("/api/v1/runs", response_model=RunCreated, status_code=status.HTTP_201_CREATED)

@@ -1,6 +1,6 @@
 <div align="center">
 
-![Prompt Laboratory — version, evaluate, compare and release prompts with confidence](docs/assets/laboratory-banner.svg)
+![Prompt Laboratory — version, evaluate, compare, and ship better prompts](docs/assets/laboratory-banner.svg)
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/ci.yml)
 [![Prompt Gate](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/prompt-evaluation.yml?branch=main&style=for-the-badge&label=Prompt%20Gate&color=22d3ee)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/prompt-evaluation.yml)
@@ -26,6 +26,15 @@ The Phase 7 workbench makes the prompt catalog directly usable from the experime
 
 Prompt files remain the source of truth. The workbench does not silently edit YAML or bypass Git
 review. See the [Phase 7 architecture decisions](docs/phase7-interactive-workbench.md).
+
+## Side-by-side model comparison
+
+Phase 8 sends the same rendered prompt to two or more configured providers concurrently. The
+comparison view keeps outputs together with latency, total tokens, and estimated cost so model
+choices can be reviewed using evidence rather than isolated playground results. A provider failure
+is contained to its own result card and does not discard successful responses from other models.
+
+See the [Phase 8 comparison design](docs/phase8-model-comparison.md).
 
 ## Why Prompt Laboratory?
 
@@ -152,10 +161,12 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 5 — FastAPI, PostgreSQL, Streamlit, and Docker
 - [x] Phase 6 — product identity, architecture, demo, and open-source MVP documentation
 - [x] Phase 7 — interactive prompt workbench and credential-safe live execution
+- [x] Phase 8 — concurrent side-by-side model comparison and safe provider failures
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
-[Phase 7](docs/phase7-interactive-workbench.md)
+[Phase 7](docs/phase7-interactive-workbench.md) ·
+[Phase 8](docs/phase8-model-comparison.md)
 
 ## Safety and release boundaries
 
