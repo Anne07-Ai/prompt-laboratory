@@ -2,25 +2,18 @@
   <title id="title">Prompt Laboratory</title>
   <desc id="desc">A futuristic prompt quality engineering laboratory</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#070B18"/><stop offset="0.52" stop-color="#171033"/><stop offset="1" stop-color="#062B35"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop stop-color="#A78BFA"/><stop offset="0.5" stop-color="#EC4899"/><stop offset="1" stop-color="#22D3EE"/>
-    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#070B18"/><stop offset="0.52" stop-color="#171033"/><stop offset="1" stop-color="#062B35"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#A78BFA"/><stop offset="0.5" stop-color="#EC4899"/><stop offset="1" stop-color="#22D3EE"/></linearGradient>
     <filter id="glow"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
   <rect width="1400" height="420" rx="28" fill="url(#bg)"/>
-  <g opacity=".16" stroke="#67E8F9">
-    <path d="M0 70H1400M0 140H1400M0 210H1400M0 280H1400M0 350H1400"/>
-    <path d="M100 0V420M200 0V420M300 0V420M400 0V420M500 0V420M600 0V420M700 0V420M800 0V420M900 0V420M1000 0V420M1100 0V420M1200 0V420M1300 0V420"/>
-  </g>
+  <g opacity=".16" stroke="#67E8F9"><path d="M0 70H1400M0 140H1400M0 210H1400M0 280H1400M0 350H1400"/><path d="M100 0V420M200 0V420M300 0V420M400 0V420M500 0V420M600 0V420M700 0V420M800 0V420M900 0V420M1000 0V420M1100 0V420M1200 0V420M1300 0V420"/></g>
   <circle cx="1180" cy="105" r="175" fill="#22D3EE" opacity=".08"/><circle cx="175" cy="360" r="220" fill="#8B5CF6" opacity=".12"/>
   <g transform="translate(95 83)">
     <text y="20" fill="#67E8F9" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="5">PROMPT QUALITY ENGINEERING</text>
     <text y="105" fill="#F8FAFC" font-family="Inter,Arial,sans-serif" font-size="68" font-weight="800">Prompt Laboratory</text>
     <rect y="131" width="650" height="5" rx="3" fill="url(#accent)"/>
-    <text y="184" fill="#CBD5E1" font-family="Inter,Arial,sans-serif" font-size="25">Version. Evaluate. Compare. Release with confidence.</text>
+    <text y="184" fill="#CBD5E1" font-family="Inter,Arial,sans-serif" font-size="25">Version. Evaluate. Compare. Ship better prompts.</text>
     <g transform="translate(0 225)" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="600">
       <rect width="145" height="43" rx="21" fill="#8B5CF6" opacity=".22" stroke="#A78BFA"/><text x="24" y="27" fill="#DDD6FE">GIT-NATIVE</text>
       <rect x="165" width="170" height="43" rx="21" fill="#06B6D4" opacity=".18" stroke="#22D3EE"/><text x="190" y="27" fill="#A5F3FC">QUALITY GATES</text>
