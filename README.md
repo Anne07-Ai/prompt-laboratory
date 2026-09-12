@@ -58,6 +58,14 @@ docker compose exec api python scripts/seed_demo_runs.py
 
 Then refresh the experiment console. See the [90-second demonstration guide](docs/demo.md).
 
+## Product preview
+
+![Prompt Laboratory experiment console showing release readiness, quality trajectory, cost, and latency](docs/assets/dashboard-overview.png)
+
+The experiment console turns evaluation evidence into a release decision: teams can inspect quality
+and pass-rate trends, compare efficiency, filter by prompt and provider, and identify regressions
+before a prompt reaches production.
+
 ## What the MVP includes
 
 | Capability | Evidence |
