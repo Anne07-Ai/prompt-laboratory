@@ -7,7 +7,8 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY scripts ./scripts
-RUN pip install --no-cache-dir ".[postgres]"
+COPY prompts ./prompts
+RUN pip install --no-cache-dir ".[postgres,providers]"
 
 RUN useradd --create-home --uid 10001 promptlab
 USER promptlab

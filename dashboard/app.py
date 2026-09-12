@@ -1,5 +1,6 @@
 """Streamlit experiment console for persisted evaluation runs."""
 
+import json
 import os
 
 import httpx
@@ -46,14 +47,97 @@ st.markdown(
 st.markdown('<div class="lab-kicker">PROMPT QUALITY ENGINEERING</div>', unsafe_allow_html=True)
 st.markdown('<div class="lab-title">Prompt Laboratory</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="lab-subtitle">Version, evaluate and release prompts with measurable confidence.</div>',
+    '<div class="lab-subtitle">Version, evaluate, compare and ship better prompts.</div>',
     unsafe_allow_html=True,
 )
 
-try:
-    response = httpx.get(f"{API_URL}/api/v1/runs", timeout=10)
+
+def fetch_json(path: str) -> list[dict[str, object]]:
+    response = httpx.get(f"{API_URL}{path}", timeout=10)
     response.raise_for_status()
-    runs = response.json()
+    return response.json()
+
+
+st.subheader("Interactive prompt workbench")
+st.caption("Choose a Git-versioned prompt, provide typed variables, and inspect the rendered request and model output.")
+
+try:
+    prompt_catalog = fetch_json("/api/v1/prompts")
+    provider_catalog = fetch_json("/api/v1/providers")
+except httpx.HTTPError as exc:
+    st.error(f"Workbench API unavailable: {exc}")
+    prompt_catalog = []
+    provider_catalog = []
+
+if prompt_catalog:
+    prompt_by_label = {
+        f"{item['name']} · {item['version']} · {item['industry']}": item
+        for item in prompt_catalog
+    }
+    selected_label = st.selectbox("Prompt contract", list(prompt_by_label))
+    selected_prompt = prompt_by_label[selected_label]
+    available_providers = [item for item in provider_catalog if item["configured"]]
+    provider_by_label = {str(item["label"]): item for item in available_providers}
+
+    with st.form("workbench-form"):
+        left, right = st.columns([1.2, 1])
+        values: dict[str, object] = {}
+        with left:
+            st.markdown(f"**{selected_prompt['description']}**")
+            for name, definition in selected_prompt["variables"].items():
+                label = f"{name} — {definition['description']}"
+                kind = definition["type"]
+                default = definition.get("default")
+                if kind == "boolean":
+                    values[name] = st.checkbox(label, value=bool(default))
+                elif kind == "integer":
+                    values[name] = st.number_input(label, value=int(default or 0), step=1)
+                elif kind == "number":
+                    values[name] = st.number_input(label, value=float(default or 0.0))
+                elif kind in {"object", "array"}:
+                    initial = default if default is not None else ({} if kind == "object" else [])
+                    values[name] = st.text_area(label, value=json.dumps(initial, indent=2))
+                else:
+                    values[name] = st.text_area(label, value=str(default or ""))
+        with right:
+            selected_provider_label = st.selectbox("Model provider", list(provider_by_label))
+            st.code(selected_prompt["template"], language="jinja2")
+        submitted = st.form_submit_button("Run experiment", type="primary", use_container_width=True)
+
+    if submitted:
+        try:
+            for name, definition in selected_prompt["variables"].items():
+                if definition["type"] in {"object", "array"}:
+                    values[name] = json.loads(str(values[name]))
+            result = httpx.post(
+                f"{API_URL}/api/v1/workbench/execute",
+                json={
+                    "prompt_id": selected_prompt["id"],
+                    "variables": values,
+                    "provider": provider_by_label[selected_provider_label]["id"],
+                },
+                timeout=90,
+            )
+            result.raise_for_status()
+            st.session_state["workbench_result"] = result.json()
+        except (json.JSONDecodeError, httpx.HTTPError) as exc:
+            st.error(f"Experiment failed: {exc}")
+
+    if result := st.session_state.get("workbench_result"):
+        rendered, output = st.columns(2)
+        rendered.markdown("#### Rendered prompt")
+        rendered.code(result["rendered_prompt"])
+        output.markdown("#### Model output")
+        output.write(result["output"])
+        st.caption(
+            f"{result['provider']}/{result['model']} · {result['latency_ms']:.0f} ms · "
+            f"{result['input_tokens']} input tokens · {result['output_tokens']} output tokens"
+        )
+
+st.divider()
+
+try:
+    runs = fetch_json("/api/v1/runs")
 except httpx.HTTPError as exc:
     st.error(f"Experiment API unavailable: {exc}")
     st.stop()

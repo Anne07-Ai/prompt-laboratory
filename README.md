@@ -14,6 +14,19 @@ Create, version, test, evaluate, compare, and approve prompts before they reach 
 
 </div>
 
+## Interactive prompt workbench
+
+The Phase 7 workbench makes the prompt catalog directly usable from the experiment console:
+
+- select any Git-versioned YAML prompt
+- enter variables through controls generated from the prompt contract
+- inspect the fully rendered prompt before execution
+- run an offline preview or a configured OpenAI/Anthropic model
+- inspect output, latency and token usage without exposing provider credentials to the browser
+
+Prompt files remain the source of truth. The workbench does not silently edit YAML or bypass Git
+review. See the [Phase 7 architecture decisions](docs/phase7-interactive-workbench.md).
+
 ## Why Prompt Laboratory?
 
 Prompts often begin as strings inside application code. As teams and models multiply, those strings
@@ -138,9 +151,11 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 4 — pull-request automation and regression gates
 - [x] Phase 5 — FastAPI, PostgreSQL, Streamlit, and Docker
 - [x] Phase 6 — product identity, architecture, demo, and open-source MVP documentation
+- [x] Phase 7 — interactive prompt workbench and credential-safe live execution
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
-[Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md)
+[Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
+[Phase 7](docs/phase7-interactive-workbench.md)
 
 ## Safety and release boundaries
 

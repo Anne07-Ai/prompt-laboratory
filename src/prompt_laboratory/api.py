@@ -2,7 +2,8 @@
 
 import os
 from contextlib import asynccontextmanager
-from typing import Annotated
+from pathlib import Path
+from typing import Annotated, Any
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query, status
@@ -10,6 +11,7 @@ from pydantic import BaseModel, ConfigDict
 
 from prompt_laboratory.evaluation import EvaluationReport
 from prompt_laboratory.storage import RunStore
+from prompt_laboratory.workbench import PromptCatalog, execute_prompt, provider_options
 
 
 class RunCreated(BaseModel):
@@ -17,8 +19,33 @@ class RunCreated(BaseModel):
     id: str
 
 
-def create_app(database_url: str | None = None) -> FastAPI:
+class WorkbenchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    prompt_id: str
+    variables: dict[str, Any]
+    provider: str = "mock/echo"
+
+
+class WorkbenchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    prompt_id: str
+    prompt_version: str
+    rendered_prompt: str
+    output: str
+    provider: str
+    model: str
+    latency_ms: float
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+
+
+def create_app(
+    database_url: str | None = None,
+    prompts_dir: str | Path | None = None,
+) -> FastAPI:
     store = RunStore(database_url or os.getenv("DATABASE_URL", "sqlite:///prompt-lab.db"))
+    catalog = PromptCatalog(prompts_dir or os.getenv("PROMPT_LAB_PROMPTS_DIR", "prompts"))
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -27,11 +54,12 @@ def create_app(database_url: str | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Prompt Laboratory API",
-        version="0.6.0",
+        version="0.7.0",
         description="Persistent evaluation-run API for prompt quality engineering.",
         lifespan=lifespan,
     )
     app.state.store = store
+    app.state.catalog = catalog
 
     def get_store() -> RunStore:
         return app.state.store
@@ -41,6 +69,36 @@ def create_app(database_url: str | None = None) -> FastAPI:
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/v1/prompts", tags=["workbench"])
+    def list_prompts() -> list[dict[str, Any]]:
+        return [prompt.model_dump(mode="json", by_alias=True) for prompt in catalog.all()]
+
+    @app.get("/api/v1/providers", tags=["workbench"])
+    def list_providers() -> list[dict[str, Any]]:
+        return provider_options()
+
+    @app.post("/api/v1/workbench/execute", response_model=WorkbenchResponse, tags=["workbench"])
+    def run_workbench(request: WorkbenchRequest) -> WorkbenchResponse:
+        prompt = catalog.get(request.prompt_id)
+        if prompt is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        try:
+            rendered, generated = execute_prompt(prompt, request.variables, request.provider)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return WorkbenchResponse(
+            prompt_id=prompt.id,
+            prompt_version=prompt.version,
+            rendered_prompt=rendered,
+            output=generated.text,
+            provider=generated.provider,
+            model=generated.model,
+            latency_ms=generated.latency_ms,
+            input_tokens=generated.input_tokens,
+            output_tokens=generated.output_tokens,
+            estimated_cost_usd=generated.estimated_cost_usd,
+        )
 
     @app.post("/api/v1/runs", response_model=RunCreated, status_code=status.HTTP_201_CREATED)
     def create_run(
