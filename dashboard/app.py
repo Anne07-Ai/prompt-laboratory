@@ -120,8 +120,16 @@ if prompt_catalog:
             )
             result.raise_for_status()
             st.session_state["workbench_result"] = result.json()
-        except (json.JSONDecodeError, httpx.HTTPError) as exc:
-            st.error(f"Experiment failed: {exc}")
+        except json.JSONDecodeError as exc:
+            st.error(f"A structured variable contains invalid JSON: {exc}")
+        except httpx.HTTPStatusError as exc:
+            try:
+                detail = exc.response.json().get("detail", str(exc))
+            except ValueError:
+                detail = str(exc)
+            st.error(f"Experiment failed: {detail}")
+        except httpx.HTTPError as exc:
+            st.error(f"Experiment API unavailable: {exc}")
 
     if result := st.session_state.get("workbench_result"):
         rendered, output = st.columns(2)
