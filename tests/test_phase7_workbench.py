@@ -71,3 +71,15 @@ def test_workbench_rejects_invalid_input_and_unknown_prompt(tmp_path) -> None:
             json={"prompt_id": "demo.greeting", "variables": {}, "provider": "mock/echo"},
         )
         assert invalid.status_code == 422
+        assert invalid.json()["detail"] == "Missing required variable: name"
+
+        empty = client.post(
+            "/api/v1/workbench/execute",
+            json={
+                "prompt_id": "demo.greeting",
+                "variables": {"name": "   "},
+                "provider": "mock/echo",
+            },
+        )
+        assert empty.status_code == 422
+        assert empty.json()["detail"] == "Variable 'name' cannot be empty"
