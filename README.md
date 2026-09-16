@@ -21,7 +21,7 @@ The Phase 7 workbench makes the prompt catalog directly usable from the experime
 - select any Git-versioned YAML prompt
 - enter variables through controls generated from the prompt contract
 - inspect the fully rendered prompt before execution
-- run an offline preview or a configured OpenAI/Anthropic model
+- run an offline preview or a configured OpenAI, Anthropic, or Gemini model
 - inspect output, latency and token usage without exposing provider credentials to the browser
 
 Prompt files remain the source of truth. The workbench does not silently edit YAML or bypass Git
@@ -35,6 +35,10 @@ choices can be reviewed using evidence rather than isolated playground results. 
 is contained to its own result card and does not discard successful responses from other models.
 
 See the [Phase 8 comparison design](docs/phase8-model-comparison.md).
+
+Phase 8.1 adds Claude Haiku 4.5 and Gemini 3.5 Flash-Lite to the live comparison matrix while
+keeping every provider credential server-side. See the
+[Phase 8.1 multi-provider design](docs/phase8-1-multi-provider.md).
 
 ## Why Prompt Laboratory?
 
@@ -95,7 +99,7 @@ before a prompt reaches production.
 | Prompt contracts | Semantic versions, owners, variables, output type/schema |
 | Safe rendering | Strict Jinja2 variables plus Pydantic input validation |
 | Evaluation | Exact match, keywords, JSON Schema, similarity, and LLM-as-judge |
-| Model support | OpenAI, Anthropic, local OpenAI-compatible HTTP, and deterministic mock |
+| Model support | OpenAI, Anthropic, Gemini, local OpenAI-compatible HTTP, and deterministic mock |
 | Observability | Input/output tokens, latency, estimated cost, score, and pass rate |
 | Comparison | Prompt versions, providers/models, and approved baselines |
 | Release control | Configurable GitHub Actions regression gate and downloadable evidence |
@@ -162,11 +166,13 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 6 — product identity, architecture, demo, and open-source MVP documentation
 - [x] Phase 7 — interactive prompt workbench and credential-safe live execution
 - [x] Phase 8 — concurrent side-by-side model comparison and safe provider failures
+- [x] Phase 8.1 — OpenAI, Claude, and Gemini comparison with provider-specific cost estimates
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
 [Phase 7](docs/phase7-interactive-workbench.md) ·
-[Phase 8](docs/phase8-model-comparison.md)
+[Phase 8](docs/phase8-model-comparison.md) ·
+[Phase 8.1](docs/phase8-1-multi-provider.md)
 
 ## Safety and release boundaries
 

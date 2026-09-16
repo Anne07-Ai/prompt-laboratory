@@ -20,6 +20,7 @@ services:
       PROMPT_LAB_PROMPTS_DIR: /app/prompts
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports: ["8000:8000"]
     depends_on:
       postgres:

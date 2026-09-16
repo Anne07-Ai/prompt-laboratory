@@ -41,11 +41,17 @@ class AnthropicProvider:
             messages=[{"role": "user", "content": request.prompt}],
         )
         text = "".join(block.text for block in response.content if hasattr(block, "text"))
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
+        estimated_cost = 0.0
+        if self._model.startswith("claude-haiku-4-5"):
+            estimated_cost = (input_tokens * 1.00 + output_tokens * 5.00) / 1_000_000
         return ProviderResponse(
             text=text,
             provider="anthropic",
             model=self._model,
             latency_ms=(perf_counter() - started) * 1000,
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            estimated_cost_usd=estimated_cost,
         )
