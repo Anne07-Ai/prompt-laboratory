@@ -168,6 +168,77 @@ with st.sidebar:
         st.session_state["workspace_id"] = selected_workspace_id
         st.session_state.pop("workbench_result", None)
         st.rerun()
+    with st.expander("Provider API keys"):
+        st.caption("Keys are encrypted server-side and are never displayed after saving.")
+        try:
+            credential_statuses = fetch_json(
+                "/api/v1/credentials", include_workspace=False
+            )
+        except httpx.HTTPError as exc:
+            st.error(f"Credential service unavailable: {exc}")
+            credential_statuses = []
+
+        if credential_statuses:
+            credential_by_label = {
+                str(item["label"]): item for item in credential_statuses
+            }
+            with st.form("provider-credential-form", clear_on_submit=True):
+                credential_label = st.selectbox(
+                    "Provider",
+                    list(credential_by_label),
+                )
+                provider_api_key = st.text_input(
+                    "API key",
+                    type="password",
+                    help="Saving a new value rotates the existing user key.",
+                )
+                save_credential = st.form_submit_button(
+                    "Save key",
+                    use_container_width=True,
+                )
+            if save_credential:
+                try:
+                    provider_name = credential_by_label[credential_label]["provider"]
+                    response = httpx.put(
+                        f"{API_URL}/api/v1/credentials/{provider_name}",
+                        json={"api_key": provider_api_key},
+                        headers=auth_headers(include_workspace=False),
+                        timeout=20,
+                    )
+                    response.raise_for_status()
+                    st.success(f"{credential_label} key saved.")
+                    st.rerun()
+                except httpx.HTTPStatusError as exc:
+                    st.error(exc.response.json().get("detail", "Unable to save key"))
+                except httpx.HTTPError as exc:
+                    st.error(f"Credential service unavailable: {exc}")
+
+            for item in credential_statuses:
+                source_labels = {
+                    "user": "Personal key",
+                    "deployment": "Deployment key",
+                    "unconfigured": "Not configured",
+                }
+                left, right = st.columns([2.1, 1])
+                left.caption(
+                    f"{item['label']} · {source_labels.get(item['source'], item['source'])}"
+                )
+                if item["source"] == "user" and right.button(
+                    "Remove",
+                    key=f"remove-credential-{item['provider']}",
+                    use_container_width=True,
+                ):
+                    try:
+                        response = httpx.delete(
+                            f"{API_URL}/api/v1/credentials/{item['provider']}",
+                            headers=auth_headers(include_workspace=False),
+                            timeout=20,
+                        )
+                        response.raise_for_status()
+                        st.rerun()
+                    except httpx.HTTPError as exc:
+                        st.error(f"Unable to remove key: {exc}")
+
     if st.button("Sign out", use_container_width=True):
         for key in ("access_token", "user", "workspaces", "workspace_id", "workbench_result"):
             st.session_state.pop(key, None)
