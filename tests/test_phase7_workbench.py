@@ -4,6 +4,8 @@ from prompt_laboratory.api import create_app
 from prompt_laboratory.providers.base import ProviderResponse
 from prompt_laboratory.workbench import PromptCatalog, ProviderExecutionError, compare_prompt
 
+TEST_SECRET = "phase-9a-test-secret-that-is-long-enough"
+
 PROMPT = """\
 schema_version: "1.0"
 id: demo.greeting
@@ -36,7 +38,7 @@ def register(client: TestClient) -> dict[str, str]:
     )
     payload = response.json()
     return {
-        "Authorization": f"Bearer ${payload['access_token']}",
+        "Authorization": f"Bearer {payload['access_token']}",
         "X-Workspace-ID": payload["workspaces"][0]["id"],
     }
 
