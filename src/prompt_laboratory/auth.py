@@ -31,7 +31,7 @@ def hash_password(password: str) -> str:
         raise ValueError("Password must contain at least 10 characters")
     salt = secrets.token_bytes(16)
     derived = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
-    return f"scrypt$16384$8$1$${_b64encode(salt)}$${_b64encode(derived)}"
+    return f"scrypt$16384$8$1${_b64encode(salt)}${_b64encode(derived)}"
 
 
 def verify_password(password: str, encoded: str) -> bool:
@@ -67,7 +67,7 @@ def create_access_token(user_id: str, secret: str, lifetime_seconds: int = 28_80
     }
     encoded = _b64encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode())
     signature = _b64encode(hmac.new(secret.encode(), encoded.encode(), hashlib.sha256).digest())
-    return f"${encoded}.${signature}"
+    return f"{encoded}.{signature}"
 
 
 def decode_access_token(token: str, secret: str) -> TokenClaims:
