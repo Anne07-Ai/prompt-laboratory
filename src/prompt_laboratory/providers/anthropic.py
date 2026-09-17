@@ -12,6 +12,7 @@ class AnthropicProvider:
         model: str,
         *,
         client: Any | None = None,
+        api_key: str | None = None,
         max_tokens: int = 1024,
         temperature: float = 0.0,
     ) -> None:
@@ -22,7 +23,7 @@ class AnthropicProvider:
                 raise RuntimeError(
                     'Install Anthropic support with: pip install "prompt-laboratory[anthropic]"'
                 ) from exc
-            client = Anthropic()
+            client = Anthropic(api_key=api_key)
         self._client = client
         self._model = model
         self._max_tokens = max_tokens
