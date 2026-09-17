@@ -66,6 +66,7 @@ class WorkbenchRequest(StrictModel):
 
 
 class WorkbenchResponse(StrictModel):
+    experiment_id: str
     prompt_id: str
     prompt_version: str
     rendered_prompt: str
@@ -85,6 +86,7 @@ class ComparisonRequest(StrictModel):
 
 
 class ComparisonResponse(StrictModel):
+    experiment_id: str
     prompt_id: str
     prompt_version: str
     rendered_prompt: str
@@ -219,7 +221,10 @@ def create_app(
 
     @app.post("/api/v1/workbench/execute", response_model=WorkbenchResponse, tags=["workbench"])
     def run_workbench(
-        request: WorkbenchRequest, _: UserDependency, __: WorkspaceDependency
+        request: WorkbenchRequest,
+        run_store: StoreDependency,
+        user: UserDependency,
+        workspace_id: WorkspaceDependency,
     ) -> WorkbenchResponse:
         prompt = catalog.get(request.prompt_id)
         if prompt is None:
@@ -234,22 +239,40 @@ def create_app(
             ) from exc
         except (ValueError, RuntimeError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        result = {
+            "output": generated.text,
+            "provider": generated.provider,
+            "model": generated.model,
+            "latency_ms": generated.latency_ms,
+            "input_tokens": generated.input_tokens,
+            "output_tokens": generated.output_tokens,
+            "estimated_cost_usd": generated.estimated_cost_usd,
+        }
+        experiment_id = run_store.save_experiment(
+            workspace_id=workspace_id,
+            user_id=str(user["id"]),
+            prompt_id=prompt.id,
+            prompt_version=prompt.version,
+            mode="single",
+            rendered_prompt=rendered,
+            request=request.model_dump(mode="json"),
+            result=result,
+        )
         return WorkbenchResponse(
+            experiment_id=experiment_id,
             prompt_id=prompt.id,
             prompt_version=prompt.version,
             rendered_prompt=rendered,
-            output=generated.text,
-            provider=generated.provider,
-            model=generated.model,
-            latency_ms=generated.latency_ms,
-            input_tokens=generated.input_tokens,
-            output_tokens=generated.output_tokens,
-            estimated_cost_usd=generated.estimated_cost_usd,
+            **result,
         )
 
     @app.post("/api/v1/workbench/compare", response_model=ComparisonResponse, tags=["workbench"])
     def compare_workbench(
-        request: ComparisonRequest, _: UserDependency, __: WorkspaceDependency
+        request: ComparisonRequest,
+        run_store: StoreDependency,
+        user: UserDependency,
+        workspace_id: WorkspaceDependency,
     ) -> ComparisonResponse:
         prompt = catalog.get(request.prompt_id)
         if prompt is None:
@@ -262,12 +285,45 @@ def create_app(
             rendered, comparisons = compare_prompt(prompt, request.variables, request.providers)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        experiment_id = run_store.save_experiment(
+            workspace_id=workspace_id,
+            user_id=str(user["id"]),
+            prompt_id=prompt.id,
+            prompt_version=prompt.version,
+            mode="comparison",
+            rendered_prompt=rendered,
+            request=request.model_dump(mode="json"),
+            result={"comparisons": comparisons},
+        )
         return ComparisonResponse(
+            experiment_id=experiment_id,
             prompt_id=prompt.id,
             prompt_version=prompt.version,
             rendered_prompt=rendered,
             comparisons=comparisons,
         )
+
+    @app.get("/api/v1/experiments", tags=["workbench"])
+    def list_experiments(
+        run_store: StoreDependency,
+        _: UserDependency,
+        workspace_id: WorkspaceDependency,
+        limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    ) -> list[dict[str, object]]:
+        return run_store.list_experiments(workspace_id, limit)
+
+    @app.get("/api/v1/experiments/{experiment_id}", tags=["workbench"])
+    def get_experiment(
+        experiment_id: str,
+        run_store: StoreDependency,
+        _: UserDependency,
+        workspace_id: WorkspaceDependency,
+    ) -> dict[str, object]:
+        experiment = run_store.get_experiment(experiment_id, workspace_id)
+        if experiment is None:
+            raise HTTPException(status_code=404, detail="Experiment not found")
+        return experiment
 
     @app.post("/api/v1/runs", response_model=RunCreated, status_code=status.HTTP_201_CREATED)
     def create_run(
