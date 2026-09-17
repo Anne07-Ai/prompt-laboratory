@@ -115,7 +115,7 @@ def test_workbench_compares_multiple_providers(tmp_path, monkeypatch) -> None:
     prompt = PromptCatalog(prompts).get("demo.greeting")
     assert prompt is not None
 
-    def fake_execute(prompt, values, provider_id):
+    def fake_execute(prompt, values, provider_id, api_keys=None):
         rendered = f"Hello {values['name']}"
         return rendered, ProviderResponse(
             text=f"Response from {provider_id}",

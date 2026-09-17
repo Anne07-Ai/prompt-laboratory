@@ -78,17 +78,19 @@ RAG pipeline, or orchestration platform.
 git clone https://github.com/Anne07-Ai/prompt-laboratory.git
 cd prompt-laboratory
 cp .env.example .env
-python -c "import secrets; print(secrets.token_urlsafe(48))"
+python -c "import secrets; print(secrets.token_urlsafe(48)); print(secrets.token_urlsafe(48))"
 ```
 
-Paste the generated value after `PROMPT_LAB_AUTH_SECRET=` in `.env`, then start the stack:
+Paste the two generated values after `PROMPT_LAB_AUTH_SECRET=` and
+`PROMPT_LAB_CREDENTIAL_KEY=` in `.env`. Use different values, then start the stack:
 
 ```bash
 docker compose up --build --wait
 ```
 
-The authentication secret is required and must contain at least 32 characters. Provider API keys are
-optional; the deterministic mock provider works without them.
+Both server secrets are required and must contain at least 32 characters. Provider API keys are
+optional; users can store encrypted personal keys from the dashboard, and the deterministic mock
+provider works without any external credential.
 
 | Surface | Address | Purpose |
 |---|---|---|
@@ -190,6 +192,7 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 8.2 — responsive comparison cards, status badges, and summary metrics
 - [x] Phase 9A — secure authentication, memberships, and workspace-isolated history
 - [x] Phase 9A.1 — Alembic migrations and workspace-scoped experiment persistence
+- [x] Phase 9B — encrypted per-user provider credentials and runtime key isolation
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
@@ -198,14 +201,16 @@ Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 8.1](docs/phase8-1-multi-provider.md) ·
 [Phase 8.2](docs/phase8-2-dashboard-polish.md) ·
 [Phase 9A](docs/phase9a-auth-workspaces.md) ·
-[Phase 9A.1](docs/phase9a-1-experiment-persistence.md)
+[Phase 9A.1](docs/phase9a-1-experiment-persistence.md) ·
+[Phase 9B](docs/phase9b-provider-credentials.md)
 
 ## Safety and release boundaries
 
 - Provider secrets belong in environment/secret management, never prompt or dataset YAML.
 - LLM-as-judge supplements deterministic checks; it does not replace them.
 - The committed PostgreSQL password is local-development-only.
-- Provider keys remain deployment-level secrets; encrypted per-user BYOK is planned for Phase 9B.
+- Provider keys may be deployment-level fallbacks or encrypted per-user credentials.
+- Plaintext provider credentials are never returned, logged, or stored in experiment evidence.
 - Hosted deployment, live A/B testing, and billing remain future scope.
 
 ## Release and license

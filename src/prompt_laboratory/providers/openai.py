@@ -12,6 +12,7 @@ class OpenAIProvider:
         model: str,
         *,
         client: Any | None = None,
+        api_key: str | None = None,
         temperature: float = 0.0,
     ) -> None:
         if client is None:
@@ -21,7 +22,7 @@ class OpenAIProvider:
                 raise RuntimeError(
                     'Install OpenAI support with: pip install "prompt-laboratory[openai]"'
                 ) from exc
-            client = OpenAI()
+            client = OpenAI(api_key=api_key)
         self._client = client
         self._model = model
         self._temperature = temperature

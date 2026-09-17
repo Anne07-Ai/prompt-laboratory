@@ -8,7 +8,7 @@ from typing import Annotated, Any
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy.exc import IntegrityError
 
 from prompt_laboratory.auth import (
@@ -17,6 +17,7 @@ from prompt_laboratory.auth import (
     hash_password,
     verify_password,
 )
+from prompt_laboratory.credentials import CredentialCipher
 from prompt_laboratory.evaluation import EvaluationReport
 from prompt_laboratory.storage import RunStore
 from prompt_laboratory.workbench import (
@@ -53,6 +54,10 @@ class AuthResponse(StrictModel):
     token_type: str = "bearer"
     user: dict[str, Any]
     workspaces: list[dict[str, Any]]
+
+
+class CredentialRequest(StrictModel):
+    api_key: SecretStr = Field(min_length=1, max_length=4096)
 
 
 class RunCreated(StrictModel):
@@ -97,10 +102,12 @@ def create_app(
     database_url: str | None = None,
     prompts_dir: str | Path | None = None,
     auth_secret: str | None = None,
+    credential_key: str | None = None,
 ) -> FastAPI:
     store = RunStore(database_url or os.getenv("DATABASE_URL", "sqlite:///prompt-lab.db"))
     catalog = PromptCatalog(prompts_dir or os.getenv("PROMPT_LAB_PROMPTS_DIR", "prompts"))
     configured_secret = auth_secret or os.getenv("PROMPT_LAB_AUTH_SECRET", "")
+    configured_credential_key = credential_key or os.getenv("PROMPT_LAB_CREDENTIAL_KEY", "")
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -116,6 +123,7 @@ def create_app(
     app.state.store = store
     app.state.catalog = catalog
     app.state.auth_secret = configured_secret
+    app.state.credential_key = configured_credential_key
     bearer = HTTPBearer(auto_error=False)
 
     def get_store() -> RunStore:
@@ -144,6 +152,45 @@ def create_app(
         return user
 
     UserDependency = Annotated[dict[str, object], Depends(current_user)]
+
+    supported_credentials = {
+        "openai": ("OpenAI", "OPENAI_API_KEY"),
+        "anthropic": ("Anthropic", "ANTHROPIC_API_KEY"),
+        "gemini": ("Google Gemini", "GEMINI_API_KEY"),
+    }
+
+    def credential_cipher() -> CredentialCipher:
+        try:
+            return CredentialCipher(app.state.credential_key)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Provider credential encryption is not configured",
+            ) from exc
+
+    def user_provider_names(run_store: RunStore, user_id: str) -> set[str]:
+        return {
+            str(item["provider"])
+            for item in run_store.list_provider_credentials(user_id)
+        }
+
+    def resolve_user_keys(
+        run_store: RunStore,
+        user_id: str,
+        providers: set[str],
+    ) -> dict[str, str]:
+        resolved: dict[str, str] = {}
+        cipher: CredentialCipher | None = None
+        for provider in providers:
+            encrypted = run_store.get_provider_credential(user_id, provider)
+            if encrypted is not None:
+                cipher = cipher or credential_cipher()
+                resolved[provider] = cipher.decrypt(
+                    encrypted,
+                    user_id=user_id,
+                    provider=provider,
+                )
+        return resolved
 
     def current_workspace(
         user: UserDependency,
@@ -216,8 +263,83 @@ def create_app(
         return [prompt.model_dump(mode="json", by_alias=True) for prompt in catalog.all()]
 
     @app.get("/api/v1/providers", tags=["workbench"])
-    def list_providers(_: UserDependency) -> list[dict[str, Any]]:
-        return provider_options()
+    def list_providers(
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> list[dict[str, Any]]:
+        configured = user_provider_names(run_store, str(user["id"]))
+        return provider_options(configured)
+
+    @app.get("/api/v1/credentials", tags=["credentials"])
+    def list_credentials(
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> list[dict[str, object]]:
+        stored = {
+            str(item["provider"]): item
+            for item in run_store.list_provider_credentials(str(user["id"]))
+        }
+        result: list[dict[str, object]] = []
+        for provider, (label, environment_key) in supported_credentials.items():
+            user_credential = stored.get(provider)
+            source = (
+                "user"
+                if user_credential is not None
+                else "deployment"
+                if os.getenv(environment_key)
+                else "unconfigured"
+            )
+            result.append(
+                {
+                    "provider": provider,
+                    "label": label,
+                    "configured": source != "unconfigured",
+                    "source": source,
+                    "updated_at": (
+                        user_credential["updated_at"] if user_credential is not None else None
+                    ),
+                }
+            )
+        return result
+
+    @app.put("/api/v1/credentials/{provider}", tags=["credentials"])
+    def put_credential(
+        provider: str,
+        request: CredentialRequest,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> dict[str, object]:
+        if provider not in supported_credentials:
+            raise HTTPException(status_code=404, detail="Unsupported provider")
+        user_id = str(user["id"])
+        try:
+            encrypted = credential_cipher().encrypt(
+                request.api_key.get_secret_value(),
+                user_id=user_id,
+                provider=provider,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        saved = run_store.upsert_provider_credential(user_id, provider, encrypted)
+        return {
+            **saved,
+            "label": supported_credentials[provider][0],
+            "source": "user",
+        }
+
+    @app.delete(
+        "/api/v1/credentials/{provider}",
+        status_code=status.HTTP_204_NO_CONTENT,
+        tags=["credentials"],
+    )
+    def delete_credential(
+        provider: str,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> None:
+        if provider not in supported_credentials:
+            raise HTTPException(status_code=404, detail="Unsupported provider")
+        run_store.delete_provider_credential(str(user["id"]), provider)
 
     @app.post("/api/v1/workbench/execute", response_model=WorkbenchResponse, tags=["workbench"])
     def run_workbench(
@@ -230,7 +352,14 @@ def create_app(
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
         try:
-            rendered, generated = execute_prompt(prompt, request.variables, request.provider)
+            provider_name = request.provider.split("/", 1)[0]
+            api_keys = resolve_user_keys(run_store, str(user["id"]), {provider_name})
+            rendered, generated = execute_prompt(
+                prompt,
+                request.variables,
+                request.provider,
+                api_keys,
+            )
         except ProviderExecutionError as exc:
             error_status = 429 if exc.code in {"quota_exceeded", "rate_limited"} else 502
             raise HTTPException(
@@ -277,12 +406,23 @@ def create_app(
         prompt = catalog.get(request.prompt_id)
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
-        configured = {item["id"] for item in provider_options() if item["configured"]}
+        user_id = str(user["id"])
+        user_providers = user_provider_names(run_store, user_id)
+        configured = {
+            item["id"] for item in provider_options(user_providers) if item["configured"]
+        }
         unavailable = [provider for provider in request.providers if provider not in configured]
         if unavailable:
             raise HTTPException(status_code=422, detail=f"Provider not configured: {unavailable[0]}")
         try:
-            rendered, comparisons = compare_prompt(prompt, request.variables, request.providers)
+            provider_names = {provider.split("/", 1)[0] for provider in request.providers}
+            api_keys = resolve_user_keys(run_store, user_id, provider_names)
+            rendered, comparisons = compare_prompt(
+                prompt,
+                request.variables,
+                request.providers,
+                api_keys,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 

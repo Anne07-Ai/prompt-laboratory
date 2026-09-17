@@ -19,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
+    delete,
     inspect,
     select,
 )
@@ -91,6 +92,20 @@ class Experiment(Base):
     rendered_prompt: Mapped[str] = mapped_column(Text)
     request_json: Mapped[str] = mapped_column(Text)
     result_json: Mapped[str] = mapped_column(Text)
+
+
+class ProviderCredential(Base):
+    __tablename__ = "provider_credentials"
+    __table_args__ = (UniqueConstraint("user_id", "provider"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32))
+    encrypted_api_key: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class RunStore:
@@ -288,6 +303,70 @@ class RunStore:
         with Session(self.engine) as session:
             row = session.scalar(statement)
             return self._experiment_dict(row, include_payload=True) if row else None
+
+    def upsert_provider_credential(
+        self, user_id: str, provider: str, encrypted_api_key: str
+    ) -> dict[str, object]:
+        now = datetime.now(UTC)
+        statement = select(ProviderCredential).where(
+            ProviderCredential.user_id == user_id,
+            ProviderCredential.provider == provider,
+        )
+        with Session(self.engine, expire_on_commit=False) as session:
+            row = session.scalar(statement)
+            if row is None:
+                row = ProviderCredential(
+                    id=str(uuid4()),
+                    user_id=user_id,
+                    provider=provider,
+                    encrypted_api_key=encrypted_api_key,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(row)
+            else:
+                row.encrypted_api_key = encrypted_api_key
+                row.updated_at = now
+            session.commit()
+            return {
+                "provider": row.provider,
+                "configured": True,
+                "updated_at": row.updated_at,
+            }
+
+    def get_provider_credential(self, user_id: str, provider: str) -> str | None:
+        statement = select(ProviderCredential.encrypted_api_key).where(
+            ProviderCredential.user_id == user_id,
+            ProviderCredential.provider == provider,
+        )
+        with Session(self.engine) as session:
+            return session.scalar(statement)
+
+    def list_provider_credentials(self, user_id: str) -> list[dict[str, object]]:
+        statement = (
+            select(ProviderCredential)
+            .where(ProviderCredential.user_id == user_id)
+            .order_by(ProviderCredential.provider)
+        )
+        with Session(self.engine) as session:
+            return [
+                {
+                    "provider": row.provider,
+                    "configured": True,
+                    "updated_at": row.updated_at,
+                }
+                for row in session.scalars(statement)
+            ]
+
+    def delete_provider_credential(self, user_id: str, provider: str) -> bool:
+        statement = delete(ProviderCredential).where(
+            ProviderCredential.user_id == user_id,
+            ProviderCredential.provider == provider,
+        )
+        with Session(self.engine) as session:
+            result = session.execute(statement)
+            session.commit()
+            return bool(result.rowcount)
 
     @staticmethod
     def _user_dict(row: User, include_password: bool = False) -> dict[str, object]:
