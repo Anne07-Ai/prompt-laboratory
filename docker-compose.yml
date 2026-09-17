@@ -20,6 +20,7 @@ services:
       DATABASE_URL: postgresql+psycopg://prompt_lab:prompt_lab_local@postgres:5432/prompt_lab
       PROMPT_LAB_PROMPTS_DIR: /app/prompts
       PROMPT_LAB_AUTH_SECRET: ${PROMPT_LAB_AUTH_SECRET:?Set PROMPT_LAB_AUTH_SECRET in .env}
+      PROMPT_LAB_CREDENTIAL_KEY: ${PROMPT_LAB_CREDENTIAL_KEY:?Set PROMPT_LAB_CREDENTIAL_KEY in .env}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
