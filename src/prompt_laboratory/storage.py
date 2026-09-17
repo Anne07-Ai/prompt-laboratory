@@ -275,7 +275,10 @@ class RunStore:
             .limit(limit)
         )
         with Session(self.engine) as session:
-            return [self._experiment_dict(row, include_payload=False) for row in session.scalars(statement)]
+            return [
+                self._experiment_dict(row, include_payload=False)
+                for row in session.scalars(statement)
+            ]
 
     def get_experiment(self, experiment_id: str, workspace_id: str) -> dict[str, object] | None:
         statement = select(Experiment).where(
