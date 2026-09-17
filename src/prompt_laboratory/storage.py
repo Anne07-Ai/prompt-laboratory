@@ -101,9 +101,10 @@ class RunStore:
         membership = WorkspaceMembership(
             id=str(uuid4()), workspace_id=workspace.id, user_id=user.id, role="owner"
         )
-        with Session(self.engine) as session:
+        with Session(self.engine, expire_on_commit=False) as session:
             session.add_all([user, workspace, membership])
             session.commit()
+
         return self._user_dict(user), self._workspace_dict(workspace, "owner")
 
     def find_user_by_email(self, email: str) -> dict[str, object] | None:
@@ -131,7 +132,7 @@ class RunStore:
         membership = WorkspaceMembership(
             id=str(uuid4()), workspace_id=workspace.id, user_id=user_id, role="owner"
         )
-        with Session(self.engine) as session:
+        with Session(self.engine, expire_on_commit=False) as session:
             session.add_all([workspace, membership])
             session.commit()
         return self._workspace_dict(workspace, "owner")
