@@ -8,17 +8,18 @@ services:
     volumes:
       - prompt_lab_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U prompt_lab"]
+      test: ["CMD-SHELL", "pg_isready -U prompt_lab -d prompt_lab"]
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 5s
 
   api:
     build: .
     environment:
       DATABASE_URL: postgresql+psycopg://prompt_lab:prompt_lab_local@postgres:5432/prompt_lab
       PROMPT_LAB_PROMPTS_DIR: /app/prompts
-      PROMPT_LAB_AUTH_SECRET: ${PROMPT_LAB_AUTH_SECRET:-}
+      PROMPT_LAB_AUTH_SECRET: ${PROMPT_LAB_AUTH_SECRET:?Set PROMPT_LAB_AUTH_SECRET in .env}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -26,6 +27,18 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   dashboard:
     build:
@@ -34,7 +47,21 @@ services:
     environment:
       PROMPT_LAB_API_URL: http://api:8000
     ports: ["8501:8501"]
-    depends_on: [api]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   prompt_lab_data:
