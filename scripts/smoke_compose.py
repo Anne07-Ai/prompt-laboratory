@@ -107,6 +107,14 @@ def main() -> None:
     assert isinstance(result, dict)
     assert result["provider"] == "mock"
     assert result["output"]
+    experiment_id = str(result["experiment_id"])
+
+    experiment = request_json(
+        f"/api/v1/experiments/{experiment_id}", headers=auth_headers
+    )
+    assert isinstance(experiment, dict)
+    assert experiment["workspace_id"] == workspace_id
+    assert experiment["mode"] == "single"
 
     runs = request_json("/api/v1/runs", headers=auth_headers)
     assert runs == []

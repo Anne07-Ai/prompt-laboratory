@@ -45,8 +45,10 @@ status badges, readable metrics, and a compact comparison summary. See the
 [Phase 8.2 dashboard polish notes](docs/phase8-2-dashboard-polish.md).
 
 Phase 9A adds email/password authentication, expiring access tokens, workspaces, memberships, and
-workspace-isolated run history. See the
-[Phase 9A authentication design](docs/phase9a-auth-workspaces.md).
+workspace-isolated run history. Phase 9A.1 adds versioned database migrations and automatically
+persists authenticated workbench experiments. See the
+[Phase 9A authentication design](docs/phase9a-auth-workspaces.md) and
+[Phase 9A.1 persistence design](docs/phase9a-1-experiment-persistence.md).
 
 ## Why Prompt Laboratory?
 
@@ -187,6 +189,7 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 8.1 — OpenAI, Claude, and Gemini comparison with provider-specific cost estimates
 - [x] Phase 8.2 — responsive comparison cards, status badges, and summary metrics
 - [x] Phase 9A — secure authentication, memberships, and workspace-isolated history
+- [x] Phase 9A.1 — Alembic migrations and workspace-scoped experiment persistence
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
@@ -194,7 +197,8 @@ Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 8](docs/phase8-model-comparison.md) ·
 [Phase 8.1](docs/phase8-1-multi-provider.md) ·
 [Phase 8.2](docs/phase8-2-dashboard-polish.md) ·
-[Phase 9A](docs/phase9a-auth-workspaces.md)
+[Phase 9A](docs/phase9a-auth-workspaces.md) ·
+[Phase 9A.1](docs/phase9a-1-experiment-persistence.md)
 
 ## Safety and release boundaries
 

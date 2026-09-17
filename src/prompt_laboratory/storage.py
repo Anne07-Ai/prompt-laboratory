@@ -1,10 +1,15 @@
-"""Persistence for users, workspaces, memberships, and evaluation reports."""
+"""Persistence for users, workspaces, evaluation reports, and workbench experiments."""
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import (
     DateTime,
     Float,
@@ -16,7 +21,6 @@ from sqlalchemy import (
     create_engine,
     inspect,
     select,
-    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -74,17 +78,46 @@ class EvaluationRun(Base):
     report_json: Mapped[str] = mapped_column(Text)
 
 
+class Experiment(Base):
+    __tablename__ = "experiments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    prompt_id: Mapped[str] = mapped_column(String(255), index=True)
+    prompt_version: Mapped[str] = mapped_column(String(64))
+    mode: Mapped[str] = mapped_column(String(20))
+    rendered_prompt: Mapped[str] = mapped_column(Text)
+    request_json: Mapped[str] = mapped_column(Text)
+    result_json: Mapped[str] = mapped_column(Text)
+
+
 class RunStore:
     def __init__(self, database_url: str) -> None:
+        self.database_url = database_url
         connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
         self.engine = create_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
 
     def create_schema(self) -> None:
-        Base.metadata.create_all(self.engine)
-        columns = {column["name"] for column in inspect(self.engine).get_columns("evaluation_runs")}
-        if "workspace_id" not in columns:
-            with self.engine.begin() as connection:
-                connection.execute(text("ALTER TABLE evaluation_runs ADD COLUMN workspace_id VARCHAR(36)"))
+        """Upgrade a new or existing database to the latest Alembic revision."""
+        config_path = Path(os.getenv("PROMPT_LAB_ALEMBIC_INI", "alembic.ini")).resolve()
+        if not config_path.exists():
+            raise RuntimeError(f"Alembic configuration not found: {config_path}")
+
+        config = Config(str(config_path))
+        config.set_main_option("script_location", str(config_path.parent / "migrations"))
+        config.set_main_option("sqlalchemy.url", self.database_url.replace("%", "%%"))
+
+        existing_tables = set(inspect(self.engine).get_table_names())
+        legacy_tables = {"users", "workspaces", "workspace_memberships", "evaluation_runs"}
+        if "alembic_version" not in existing_tables and legacy_tables.issubset(existing_tables):
+            command.stamp(config, "0001")
+        elif existing_tables and "alembic_version" not in existing_tables:
+            unexpected = ", ".join(sorted(existing_tables))
+            raise RuntimeError(f"Database has an unsupported unmigrated schema: {unexpected}")
+
+        command.upgrade(config, "head")
 
     def create_user_with_workspace(
         self, email: str, display_name: str, password_hash: str, workspace_name: str
@@ -204,6 +237,58 @@ class RunStore:
                 for row in rows
             ]
 
+    def save_experiment(
+        self,
+        *,
+        workspace_id: str,
+        user_id: str,
+        prompt_id: str,
+        prompt_version: str,
+        mode: str,
+        rendered_prompt: str,
+        request: dict[str, object],
+        result: dict[str, object],
+    ) -> str:
+        experiment_id = str(uuid4())
+        row = Experiment(
+            id=experiment_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            created_at=datetime.now(UTC),
+            prompt_id=prompt_id,
+            prompt_version=prompt_version,
+            mode=mode,
+            rendered_prompt=rendered_prompt,
+            request_json=json.dumps(request, separators=(",", ":"), sort_keys=True),
+            result_json=json.dumps(result, separators=(",", ":"), sort_keys=True),
+        )
+        with Session(self.engine) as session:
+            session.add(row)
+            session.commit()
+        return experiment_id
+
+    def list_experiments(self, workspace_id: str, limit: int = 100) -> list[dict[str, object]]:
+        statement = (
+            select(Experiment)
+            .where(Experiment.workspace_id == workspace_id)
+            .order_by(Experiment.created_at.desc())
+            .limit(limit)
+        )
+        with Session(self.engine) as session:
+            return [
+                self._experiment_dict(row, include_payload=False)
+                for row in session.scalars(statement)
+            ]
+
+    def get_experiment(self, experiment_id: str, workspace_id: str) -> dict[str, object] | None:
+        statement = select(Experiment).where(
+            Experiment.id == experiment_id,
+            Experiment.workspace_id == workspace_id,
+        )
+        with Session(self.engine) as session:
+            row = session.scalar(statement)
+            return self._experiment_dict(row, include_payload=True) if row else None
+
     @staticmethod
     def _user_dict(row: User, include_password: bool = False) -> dict[str, object]:
         value: dict[str, object] = {
@@ -219,3 +304,24 @@ class RunStore:
     @staticmethod
     def _workspace_dict(row: Workspace, role: str) -> dict[str, object]:
         return {"id": row.id, "name": row.name, "role": role, "created_at": row.created_at}
+
+    @staticmethod
+    def _experiment_dict(row: Experiment, include_payload: bool) -> dict[str, object]:
+        value: dict[str, object] = {
+            "id": row.id,
+            "workspace_id": row.workspace_id,
+            "user_id": row.user_id,
+            "created_at": row.created_at,
+            "prompt_id": row.prompt_id,
+            "prompt_version": row.prompt_version,
+            "mode": row.mode,
+        }
+        if include_payload:
+            value.update(
+                {
+                    "rendered_prompt": row.rendered_prompt,
+                    "request": json.loads(row.request_json),
+                    "result": json.loads(row.result_json),
+                }
+            )
+        return value
