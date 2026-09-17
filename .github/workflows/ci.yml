@@ -39,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PROMPT_LAB_AUTH_SECRET: ci-compose-secret-that-is-at-least-32-characters
+      PROMPT_LAB_CREDENTIAL_KEY: ci-credential-key-that-is-at-least-32-characters
     steps:
       - uses: actions/checkout@v4
       - name: Start Docker Compose stack
