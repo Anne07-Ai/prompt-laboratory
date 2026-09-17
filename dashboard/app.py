@@ -38,6 +38,12 @@ st.markdown(
     .metric-value { color:#f8fafc; font-size:2rem; font-weight:750; margin:.35rem 0 .15rem; }
     .metric-note { color:#64748b; font-size:.8rem; }
     .status-pass { color:#34d399; } .status-watch { color:#fbbf24; }
+    .provider-status {
+        display:inline-flex; align-items:center; gap:.35rem; margin:.1rem 0 .8rem;
+        padding:.22rem .62rem; border-radius:999px; font-size:.75rem; font-weight:700;
+    }
+    .provider-success { color:#6ee7b7; background:rgba(16,185,129,.12); }
+    .provider-error { color:#fca5a5; background:rgba(239,68,68,.12); }
     div[data-testid="stDataFrame"] { border:1px solid rgba(148,163,184,.16); border-radius:16px; }
     </style>
     """,
@@ -184,29 +190,74 @@ if prompt_catalog:
         else:
             st.markdown("#### Comparison results")
             comparisons = result["comparisons"]
-            columns = st.columns(len(comparisons))
-            for column, comparison in zip(columns, comparisons, strict=True):
-                with column, st.container(border=True):
-                    st.markdown(f"##### {comparison['provider_id']}")
-                    if comparison["error"]:
-                        st.error(comparison["error"]["message"])
-                    else:
-                        model_result = comparison["result"]
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("Latency", f"{model_result['latency_ms']:.0f} ms")
-                        m2.metric(
-                            "Tokens",
-                            f"{model_result['input_tokens'] + model_result['output_tokens']}",
+            labels_by_id = {
+                str(item["id"]): str(item["label"]) for item in provider_catalog
+            }
+            summary_rows = []
+            for comparison in comparisons:
+                model_result = comparison["result"]
+                error = comparison["error"]
+                summary_rows.append(
+                    {
+                        "Model": labels_by_id.get(
+                            comparison["provider_id"], comparison["provider_id"]
+                        ),
+                        "Status": "Failed" if error else "Success",
+                        "Latency": "—" if error else f"{model_result['latency_ms']:,.0f} ms",
+                        "Tokens": "—"
+                        if error
+                        else f"{model_result['input_tokens'] + model_result['output_tokens']:,}",
+                        "Estimated cost": "—"
+                        if error
+                        else f"${model_result['estimated_cost_usd']:.6f}",
+                    }
+                )
+            st.dataframe(
+                pd.DataFrame(summary_rows),
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Model": st.column_config.TextColumn(width="large"),
+                    "Status": st.column_config.TextColumn(width="small"),
+                },
+            )
+
+            for offset in range(0, len(comparisons), 2):
+                columns = st.columns(2)
+                row = comparisons[offset : offset + 2]
+                for column, comparison in zip(columns, row, strict=False):
+                    with column, st.container(border=True):
+                        provider_label = labels_by_id.get(
+                            comparison["provider_id"], comparison["provider_id"]
                         )
-                        cost = model_result["estimated_cost_usd"]
-                        cost_label = (
-                            f"${cost:.6f}"
-                            if cost > 0 or comparison["provider_id"] == "mock/echo"
-                            else "Not configured"
-                        )
-                        m3.metric("Cost", cost_label)
-                        st.markdown("**Output**")
-                        st.write(model_result["text"])
+                        st.markdown(f"##### {provider_label}")
+                        if comparison["error"]:
+                            st.markdown(
+                                '<span class="provider-status provider-error">● Failed</span>',
+                                unsafe_allow_html=True,
+                            )
+                            st.error(comparison["error"]["message"])
+                        else:
+                            st.markdown(
+                                '<span class="provider-status provider-success">● Success</span>',
+                                unsafe_allow_html=True,
+                            )
+                            model_result = comparison["result"]
+                            m1, m2, m3 = st.columns(3)
+                            m1.metric("Latency", f"{model_result['latency_ms']:,.0f} ms")
+                            m2.metric(
+                                "Tokens",
+                                f"{model_result['input_tokens'] + model_result['output_tokens']:,}",
+                            )
+                            cost = model_result["estimated_cost_usd"]
+                            cost_label = (
+                                f"${cost:.6f}"
+                                if cost > 0 or comparison["provider_id"] == "mock/echo"
+                                else "Unavailable"
+                            )
+                            m3.metric("Cost", cost_label)
+                            st.markdown("**Output**")
+                            st.write(model_result["text"])
 
 st.divider()
 
