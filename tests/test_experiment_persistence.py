@@ -110,7 +110,7 @@ def test_comparison_is_persisted(monkeypatch, tmp_path) -> None:
         {"id": "mock/two", "label": "Mock two", "configured": True},
     ]
 
-    def fake_compare(prompt, variables, provider_ids):
+    def fake_compare(prompt, variables, provider_ids, api_keys=None):
         assert variables == {"name": "Lakshmi"}
         return "Hello Lakshmi", [
             {
@@ -129,7 +129,10 @@ def test_comparison_is_persisted(monkeypatch, tmp_path) -> None:
             for provider_id in provider_ids
         ]
 
-    monkeypatch.setattr("prompt_laboratory.api.provider_options", lambda: providers)
+    monkeypatch.setattr(
+        "prompt_laboratory.api.provider_options",
+        lambda configured=None: providers,
+    )
     monkeypatch.setattr("prompt_laboratory.api.compare_prompt", fake_compare)
 
     with TestClient(app) as client:
