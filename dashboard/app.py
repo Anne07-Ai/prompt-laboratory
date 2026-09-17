@@ -58,10 +58,120 @@ st.markdown(
 )
 
 
-def fetch_json(path: str) -> list[dict[str, object]]:
-    response = httpx.get(f"{API_URL}{path}", timeout=10)
+def auth_headers(include_workspace: bool = True) -> dict[str, str]:
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    workspace_id = st.session_state.get("workspace_id")
+    if include_workspace and workspace_id:
+        headers["X-Workspace-ID"] = workspace_id
+    return headers
+
+
+def fetch_json(path: str, include_workspace: bool = True) -> object:
+    response = httpx.get(
+        f"{API_URL}{path}",
+        headers=auth_headers(include_workspace),
+        timeout=10,
+    )
     response.raise_for_status()
     return response.json()
+
+
+def submit_auth(path: str, payload: dict[str, str]) -> None:
+    response = httpx.post(f"{API_URL}{path}", json=payload, timeout=20)
+    response.raise_for_status()
+    result = response.json()
+    st.session_state["access_token"] = result["access_token"]
+    st.session_state["user"] = result["user"]
+    st.session_state["workspaces"] = result["workspaces"]
+    st.session_state["workspace_id"] = result["workspaces"][0]["id"]
+    st.rerun()
+
+
+if "access_token" not in st.session_state:
+    st.subheader("Sign in to your laboratory")
+    sign_in, register = st.tabs(["Sign in", "Create account"])
+    with sign_in:
+        with st.form("sign-in-form"):
+            email = st.text_input("Email address")
+            password = st.text_input("Password", type="password")
+            submitted_login = st.form_submit_button("Sign in", type="primary")
+        if submitted_login:
+            try:
+                submit_auth("/api/v1/auth/login", {"email": email, "password": password})
+            except httpx.HTTPStatusError as exc:
+                st.error(exc.response.json().get("detail", "Sign-in failed"))
+            except httpx.HTTPError as exc:
+                st.error(f"Authentication service unavailable: {exc}")
+    with register:
+        with st.form("registration-form"):
+            display_name = st.text_input("Your name")
+            registration_email = st.text_input("Email address", key="registration-email")
+            registration_password = st.text_input(
+                "Password (at least 10 characters)", type="password", key="registration-password"
+            )
+            workspace_name = st.text_input("Workspace name", value="My Prompt Laboratory")
+            submitted_registration = st.form_submit_button("Create account", type="primary")
+        if submitted_registration:
+            try:
+                submit_auth(
+                    "/api/v1/auth/register",
+                    {
+                        "email": registration_email,
+                        "display_name": display_name,
+                        "password": registration_password,
+                        "workspace_name": workspace_name,
+                    },
+                )
+            except httpx.HTTPStatusError as exc:
+                st.error(exc.response.json().get("detail", "Account creation failed"))
+            except httpx.HTTPError as exc:
+                st.error(f"Authentication service unavailable: {exc}")
+    st.stop()
+
+
+try:
+    identity = fetch_json("/api/v1/auth/me", include_workspace=False)
+    st.session_state["user"] = identity["user"]
+    st.session_state["workspaces"] = identity["workspaces"]
+except httpx.HTTPStatusError as exc:
+    if exc.response.status_code == 401:
+        for key in ("access_token", "user", "workspaces", "workspace_id", "workbench_result"):
+            st.session_state.pop(key, None)
+        st.rerun()
+    st.error(f"Authentication check failed: {exc}")
+    st.stop()
+except httpx.HTTPError as exc:
+    st.error(f"Authentication service unavailable: {exc}")
+    st.stop()
+
+
+workspaces = st.session_state["workspaces"]
+if not workspaces:
+    st.error("Your account does not belong to a workspace.")
+    st.stop()
+workspace_by_name = {f"{item['name']} · {item['role']}": item for item in workspaces}
+current_workspace = st.session_state.get("workspace_id")
+default_index = next(
+    (
+        index
+        for index, item in enumerate(workspace_by_name.values())
+        if item["id"] == current_workspace
+    ),
+    0,
+)
+with st.sidebar:
+    st.markdown(f"**{st.session_state['user']['display_name']}**")
+    workspace_label = st.selectbox("Workspace", list(workspace_by_name), index=default_index)
+    selected_workspace_id = workspace_by_name[workspace_label]["id"]
+    if selected_workspace_id != st.session_state.get("workspace_id"):
+        st.session_state["workspace_id"] = selected_workspace_id
+        st.session_state.pop("workbench_result", None)
+        st.rerun()
+    if st.button("Sign out", use_container_width=True):
+        for key in ("access_token", "user", "workspaces", "workspace_id", "workbench_result"):
+            st.session_state.pop(key, None)
+        st.rerun()
 
 
 st.subheader("Interactive prompt workbench")
@@ -153,7 +263,12 @@ if prompt_catalog:
                     "variables": values,
                     "provider": provider_ids[0],
                 }
-            result = httpx.post(f"{API_URL}{path}", json=payload, timeout=120)
+            result = httpx.post(
+                f"{API_URL}{path}",
+                json=payload,
+                headers=auth_headers(),
+                timeout=120,
+            )
             result.raise_for_status()
             st.session_state["workbench_result"] = {
                 "mode": workbench_mode,
