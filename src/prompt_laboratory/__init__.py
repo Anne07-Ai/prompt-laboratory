@@ -5,4 +5,4 @@ from prompt_laboratory.models import PromptDefinition
 from prompt_laboratory.renderer import PromptRenderer
 
 __all__ = ["PromptDefinition", "PromptRenderer", "load_prompt"]
-__version__ = "0.8.2"
+__version__ = "0.9.0"

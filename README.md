@@ -44,6 +44,10 @@ Phase 8.2 presents those results in a responsive two-column layout with friendly
 status badges, readable metrics, and a compact comparison summary. See the
 [Phase 8.2 dashboard polish notes](docs/phase8-2-dashboard-polish.md).
 
+Phase 9A adds email/password authentication, expiring access tokens, workspaces, memberships, and
+workspace-isolated run history. See the
+[Phase 9A authentication design](docs/phase9a-auth-workspaces.md).
+
 ## Why Prompt Laboratory?
 
 Prompts often begin as strings inside application code. As teams and models multiply, those strings
@@ -172,20 +176,23 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 8 — concurrent side-by-side model comparison and safe provider failures
 - [x] Phase 8.1 — OpenAI, Claude, and Gemini comparison with provider-specific cost estimates
 - [x] Phase 8.2 — responsive comparison cards, status badges, and summary metrics
+- [x] Phase 9A — secure authentication, memberships, and workspace-isolated history
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
 [Phase 7](docs/phase7-interactive-workbench.md) ·
 [Phase 8](docs/phase8-model-comparison.md) ·
 [Phase 8.1](docs/phase8-1-multi-provider.md) ·
-[Phase 8.2](docs/phase8-2-dashboard-polish.md)
+[Phase 8.2](docs/phase8-2-dashboard-polish.md) ·
+[Phase 9A](docs/phase9a-auth-workspaces.md)
 
 ## Safety and release boundaries
 
 - Provider secrets belong in environment/secret management, never prompt or dataset YAML.
 - LLM-as-judge supplements deterministic checks; it does not replace them.
 - The committed PostgreSQL password is local-development-only.
-- Authentication, hosted workspaces, live A/B testing, deployment, and billing remain future scope.
+- Provider keys remain deployment-level secrets; encrypted per-user BYOK is planned for Phase 9B.
+- Hosted deployment, live A/B testing, and billing remain future scope.
 
 ## Release and license
 
