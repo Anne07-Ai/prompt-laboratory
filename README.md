@@ -40,6 +40,10 @@ Phase 8.1 adds Claude Haiku 4.5 and Gemini 3.5 Flash-Lite to the live comparison
 keeping every provider credential server-side. See the
 [Phase 8.1 multi-provider design](docs/phase8-1-multi-provider.md).
 
+Phase 8.2 presents those results in a responsive two-column layout with friendly model names,
+status badges, readable metrics, and a compact comparison summary. See the
+[Phase 8.2 dashboard polish notes](docs/phase8-2-dashboard-polish.md).
+
 ## Why Prompt Laboratory?
 
 Prompts often begin as strings inside application code. As teams and models multiply, those strings
@@ -167,12 +171,14 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 7 — interactive prompt workbench and credential-safe live execution
 - [x] Phase 8 — concurrent side-by-side model comparison and safe provider failures
 - [x] Phase 8.1 — OpenAI, Claude, and Gemini comparison with provider-specific cost estimates
+- [x] Phase 8.2 — responsive comparison cards, status badges, and summary metrics
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
 [Phase 7](docs/phase7-interactive-workbench.md) ·
 [Phase 8](docs/phase8-model-comparison.md) ·
-[Phase 8.1](docs/phase8-1-multi-provider.md)
+[Phase 8.1](docs/phase8-1-multi-provider.md) ·
+[Phase 8.2](docs/phase8-2-dashboard-polish.md)
 
 ## Safety and release boundaries
 
