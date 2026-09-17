@@ -7,7 +7,9 @@ from prompt_laboratory.providers.base import ProviderRequest, ProviderResponse
 
 
 class GeminiProvider:
-    def __init__(self, model: str, *, client: Any | None = None) -> None:
+    def __init__(
+        self, model: str, *, client: Any | None = None, api_key: str | None = None
+    ) -> None:
         if client is None:
             try:
                 from google import genai
@@ -15,7 +17,7 @@ class GeminiProvider:
                 raise RuntimeError(
                     'Install Gemini support with: pip install "prompt-laboratory[gemini]"'
                 ) from exc
-            client = genai.Client()
+            client = genai.Client(api_key=api_key)
         self._client = client
         self._model = model
 
