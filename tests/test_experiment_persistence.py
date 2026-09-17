@@ -1,6 +1,7 @@
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, inspect
 
 from prompt_laboratory.api import create_app
 
@@ -94,6 +95,58 @@ def test_existing_baseline_schema_upgrades_to_experiments(tmp_path) -> None:
         headers = register(client, "upgrade@example.com")
         assert client.get("/api/v1/experiments", headers=headers).json() == []
 
-    config = Config("alembic.ini")
-    config.set_main_option("sqlalchemy.url", database_url)
-    assert command.current(config) is None
+    tables = set(inspect(create_engine(database_url)).get_table_names())
+    assert {"alembic_version", "experiments"}.issubset(tables)
+
+
+def test_comparison_is_persisted(monkeypatch, tmp_path) -> None:
+    prompts = tmp_path / "prompts"
+    prompts.mkdir()
+    (prompts / "greeting.yaml").write_text(PROMPT, encoding="utf-8")
+    app = create_app(f"sqlite:///{tmp_path / 'comparison.db'}", prompts, TEST_SECRET)
+
+    providers = [
+        {"id": "mock/one", "label": "Mock one", "configured": True},
+        {"id": "mock/two", "label": "Mock two", "configured": True},
+    ]
+
+    def fake_compare(prompt, variables, provider_ids):
+        assert variables == {"name": "Lakshmi"}
+        return "Hello Lakshmi", [
+            {
+                "provider_id": provider_id,
+                "result": {
+                    "text": f"Response from {provider_id}",
+                    "provider": "mock",
+                    "model": provider_id.split("/")[1],
+                    "latency_ms": 1.0,
+                    "input_tokens": 2,
+                    "output_tokens": 3,
+                    "estimated_cost_usd": 0.0,
+                },
+                "error": None,
+            }
+            for provider_id in provider_ids
+        ]
+
+    monkeypatch.setattr("prompt_laboratory.api.provider_options", lambda: providers)
+    monkeypatch.setattr("prompt_laboratory.api.compare_prompt", fake_compare)
+
+    with TestClient(app) as client:
+        headers = register(client, "comparison@example.com")
+        response = client.post(
+            "/api/v1/workbench/compare",
+            headers=headers,
+            json={
+                "prompt_id": "demo.greeting",
+                "variables": {"name": "Lakshmi"},
+                "providers": ["mock/one", "mock/two"],
+            },
+        )
+        assert response.status_code == 200
+        experiment_id = response.json()["experiment_id"]
+        stored = client.get(
+            f"/api/v1/experiments/{experiment_id}", headers=headers
+        ).json()
+        assert stored["mode"] == "comparison"
+        assert len(stored["result"]["comparisons"]) == 2
