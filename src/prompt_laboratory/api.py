@@ -75,7 +75,7 @@ def create_app(
 
     app = FastAPI(
         title="Prompt Laboratory API",
-        version="0.8.0",
+        version="0.8.1",
         description="Persistent evaluation-run API for prompt quality engineering.",
         lifespan=lifespan,
     )

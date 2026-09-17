@@ -7,7 +7,7 @@ from typing import Any
 
 from prompt_laboratory.loader import load_prompt
 from prompt_laboratory.models import PromptDefinition
-from prompt_laboratory.providers import AnthropicProvider, OpenAIProvider
+from prompt_laboratory.providers import AnthropicProvider, GeminiProvider, OpenAIProvider
 from prompt_laboratory.providers.base import ProviderRequest, ProviderResponse
 from prompt_laboratory.renderer import PromptRenderer
 
@@ -66,9 +66,14 @@ def provider_options() -> list[dict[str, Any]]:
             "configured": bool(os.getenv("OPENAI_API_KEY")),
         },
         {
-            "id": "anthropic/claude-3-5-haiku-latest",
-            "label": "Anthropic · Claude 3.5 Haiku",
+            "id": "anthropic/claude-haiku-4-5-20251001",
+            "label": "Anthropic · Claude Haiku 4.5",
             "configured": bool(os.getenv("ANTHROPIC_API_KEY")),
+        },
+        {
+            "id": "gemini/gemini-3.5-flash-lite",
+            "label": "Google · Gemini 3.5 Flash-Lite",
+            "configured": bool(os.getenv("GEMINI_API_KEY")),
         },
     ]
 
@@ -89,6 +94,10 @@ def execute_prompt(
         if not os.getenv("ANTHROPIC_API_KEY"):
             raise ValueError("ANTHROPIC_API_KEY is not configured")
         provider = AnthropicProvider(provider_id.removeprefix("anthropic/"))
+    elif provider_id.startswith("gemini/"):
+        if not os.getenv("GEMINI_API_KEY"):
+            raise ValueError("GEMINI_API_KEY is not configured")
+        provider = GeminiProvider(provider_id.removeprefix("gemini/"))
     else:
         raise ValueError(f"Unsupported provider: {provider_id}")
 
