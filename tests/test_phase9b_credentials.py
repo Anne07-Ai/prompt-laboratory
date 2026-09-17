@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+
 from prompt_laboratory.api import create_app
 from prompt_laboratory.credentials import CredentialCipher
 from prompt_laboratory.providers.base import ProviderResponse
