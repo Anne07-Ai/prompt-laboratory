@@ -24,7 +24,9 @@ jobs:
       - name: Test
         run: python -m pytest
       - name: Build API container
-        run: docker build -t prompt-laboratory:test .
+        run: docker build -t prompt-laboratory-api:test .
+      - name: Build dashboard container
+        run: docker build -f Dockerfile.dashboard -t prompt-laboratory-dashboard:test .
       - name: Phase 2 CLI smoke evaluation
         run: |
           prompt-lab evaluate \
@@ -32,3 +34,20 @@ jobs:
             --dataset datasets/education/concept-explanation.yaml \
             --output reports/education.json
           python -m json.tool reports/education.json > /dev/null
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    env:
+      PROMPT_LAB_AUTH_SECRET: ci-compose-secret-that-is-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start Docker Compose stack
+        run: docker compose up --build --wait --wait-timeout 120
+      - name: Verify authenticated application flow
+        run: python scripts/smoke_compose.py
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop Docker Compose stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans

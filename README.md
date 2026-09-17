@@ -75,8 +75,18 @@ RAG pipeline, or orchestration platform.
 ```bash
 git clone https://github.com/Anne07-Ai/prompt-laboratory.git
 cd prompt-laboratory
-docker compose up --build -d
+cp .env.example .env
+python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
+
+Paste the generated value after `PROMPT_LAB_AUTH_SECRET=` in `.env`, then start the stack:
+
+```bash
+docker compose up --build --wait
+```
+
+The authentication secret is required and must contain at least 32 characters. Provider API keys are
+optional; the deterministic mock provider works without them.
 
 | Surface | Address | Purpose |
 |---|---|---|
