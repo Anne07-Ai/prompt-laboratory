@@ -179,11 +179,12 @@ def create_app(
         user_id: str,
         providers: set[str],
     ) -> dict[str, str]:
-        cipher = credential_cipher()
         resolved: dict[str, str] = {}
+        cipher: CredentialCipher | None = None
         for provider in providers:
             encrypted = run_store.get_provider_credential(user_id, provider)
             if encrypted is not None:
+                cipher = cipher or credential_cipher()
                 resolved[provider] = cipher.decrypt(
                     encrypted,
                     user_id=user_id,
