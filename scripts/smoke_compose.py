@@ -74,6 +74,23 @@ def main() -> None:
     assert isinstance(identity, dict)
     assert identity["user"]["email"] == email
 
+    credential = request_json(
+        "/api/v1/credentials/openai",
+        method="PUT",
+        payload={"api_key": "compose-smoke-provider-key"},
+        headers=auth_headers,
+    )
+    assert isinstance(credential, dict)
+    assert credential["source"] == "user"
+    assert "compose-smoke-provider-key" not in json.dumps(credential)
+
+    credentials = request_json("/api/v1/credentials", headers=auth_headers)
+    assert isinstance(credentials, list)
+    openai_status = next(
+        item for item in credentials if item["provider"] == "openai"
+    )
+    assert openai_status["source"] == "user"
+
     prompts = request_json("/api/v1/prompts", headers=auth_headers)
     assert isinstance(prompts, list) and prompts
     prompt = prompts[0]
