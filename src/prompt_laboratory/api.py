@@ -57,7 +57,7 @@ class AuthResponse(StrictModel):
 
 
 class CredentialRequest(StrictModel):
-    api_key: SecretStr
+    api_key: SecretStr = Field(min_length=1, max_length=4096)
 
 
 class RunCreated(StrictModel):
@@ -312,11 +312,14 @@ def create_app(
         if provider not in supported_credentials:
             raise HTTPException(status_code=404, detail="Unsupported provider")
         user_id = str(user["id"])
-        encrypted = credential_cipher().encrypt(
-            request.api_key.get_secret_value(),
-            user_id=user_id,
-            provider=provider,
-        )
+        try:
+            encrypted = credential_cipher().encrypt(
+                request.api_key.get_secret_value(),
+                user_id=user_id,
+                provider=provider,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         saved = run_store.upsert_provider_credential(user_id, provider, encrypted)
         return {
             **saved,
