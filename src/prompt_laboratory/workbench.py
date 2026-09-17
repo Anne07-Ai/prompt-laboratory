@@ -56,24 +56,36 @@ class EchoProvider:
         )
 
 
-def provider_options() -> list[dict[str, Any]]:
+PROVIDER_ENVIRONMENT_KEYS = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+}
+
+
+def provider_options(user_providers: set[str] | None = None) -> list[dict[str, Any]]:
     """Return safe provider metadata; never expose credential values."""
+    configured = user_providers or set()
+
+    def available(provider: str) -> bool:
+        return provider in configured or bool(os.getenv(PROVIDER_ENVIRONMENT_KEYS[provider]))
+
     return [
         {"id": "mock/echo", "label": "Offline preview", "configured": True},
         {
             "id": "openai/gpt-4.1-mini",
             "label": "OpenAI · GPT-4.1 mini",
-            "configured": bool(os.getenv("OPENAI_API_KEY")),
+            "configured": available("openai"),
         },
         {
             "id": "anthropic/claude-haiku-4-5-20251001",
             "label": "Anthropic · Claude Haiku 4.5",
-            "configured": bool(os.getenv("ANTHROPIC_API_KEY")),
+            "configured": available("anthropic"),
         },
         {
             "id": "gemini/gemini-3.5-flash-lite",
             "label": "Google · Gemini 3.5 Flash-Lite",
-            "configured": bool(os.getenv("GEMINI_API_KEY")),
+            "configured": available("gemini"),
         },
     ]
 
@@ -82,22 +94,27 @@ def execute_prompt(
     prompt: PromptDefinition,
     values: dict[str, Any],
     provider_id: str,
+    api_keys: dict[str, str] | None = None,
 ) -> tuple[str, ProviderResponse]:
     rendered = PromptRenderer().render(prompt, values)
+    resolved_keys = api_keys or {}
     if provider_id == "mock/echo":
         provider = EchoProvider()
     elif provider_id.startswith("openai/"):
-        if not os.getenv("OPENAI_API_KEY"):
-            raise ValueError("OPENAI_API_KEY is not configured")
-        provider = OpenAIProvider(provider_id.removeprefix("openai/"))
+        api_key = resolved_keys.get("openai") or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OpenAI is not configured")
+        provider = OpenAIProvider(provider_id.removeprefix("openai/"), api_key=api_key)
     elif provider_id.startswith("anthropic/"):
-        if not os.getenv("ANTHROPIC_API_KEY"):
-            raise ValueError("ANTHROPIC_API_KEY is not configured")
-        provider = AnthropicProvider(provider_id.removeprefix("anthropic/"))
+        api_key = resolved_keys.get("anthropic") or os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("Anthropic is not configured")
+        provider = AnthropicProvider(provider_id.removeprefix("anthropic/"), api_key=api_key)
     elif provider_id.startswith("gemini/"):
-        if not os.getenv("GEMINI_API_KEY"):
-            raise ValueError("GEMINI_API_KEY is not configured")
-        provider = GeminiProvider(provider_id.removeprefix("gemini/"))
+        api_key = resolved_keys.get("gemini") or os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("Gemini is not configured")
+        provider = GeminiProvider(provider_id.removeprefix("gemini/"), api_key=api_key)
     else:
         raise ValueError(f"Unsupported provider: {provider_id}")
 
@@ -127,6 +144,7 @@ def compare_prompt(
     prompt: PromptDefinition,
     values: dict[str, Any],
     provider_ids: list[str],
+    api_keys: dict[str, str] | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Execute one rendered prompt concurrently across distinct providers."""
     unique_ids = list(dict.fromkeys(provider_ids))
@@ -136,7 +154,7 @@ def compare_prompt(
     results: list[dict[str, Any]] = []
 
     def run(provider_id: str) -> ProviderResponse:
-        return execute_prompt(prompt, values, provider_id)[1]
+        return execute_prompt(prompt, values, provider_id, api_keys)[1]
 
     with ThreadPoolExecutor(max_workers=min(len(unique_ids), 4)) as pool:
         futures = {pool.submit(run, provider_id): provider_id for provider_id in unique_ids}
