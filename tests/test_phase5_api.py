@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 from prompt_laboratory.api import create_app
 from prompt_laboratory.evaluation import EvaluationReport, RunSummary
 
+TEST_SECRET = "phase-9a-test-secret-that-is-long-enough"
+
 
 def sample_report() -> dict[str, object]:
     return EvaluationReport(
@@ -27,25 +29,55 @@ def sample_report() -> dict[str, object]:
     ).model_dump(mode="json")
 
 
+def authenticated_client(tmp_path):
+    app = create_app(
+        f"sqlite:///{tmp_path / 'runs.db'}",
+        auth_secret=TEST_SECRET,
+    )
+    client = TestClient(app)
+    return client
+
+
+def register(client: TestClient) -> tuple[dict[str, str], str]:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "owner@example.com",
+            "display_name": "Owner",
+            "password": "correct-horse-battery-staple",
+            "workspace_name": "Test workspace",
+        },
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    return (
+        {
+            "Authorization": f"Bearer {payload['access_token']}",
+            "X-Workspace-ID": payload["workspaces"][0]["id"],
+        },
+        payload["workspaces"][0]["id"],
+    )
+
+
 def test_health_and_run_lifecycle(tmp_path) -> None:
-    app = create_app(f"sqlite:///{tmp_path / 'runs.db'}")
-    with TestClient(app) as client:
+    with authenticated_client(tmp_path) as client:
         assert client.get("/health").json() == {"status": "ok"}
-        created = client.post("/api/v1/runs", json=sample_report())
+        headers, _ = register(client)
+        created = client.post("/api/v1/runs", json=sample_report(), headers=headers)
         assert created.status_code == 201
         run_id = created.json()["id"]
 
-        listing = client.get("/api/v1/runs").json()
+        listing = client.get("/api/v1/runs", headers=headers).json()
         assert listing[0]["id"] == run_id
         assert listing[0]["average_score"] == 0.98
 
-        detail = client.get(f"/api/v1/runs/{run_id}")
+        detail = client.get(f"/api/v1/runs/{run_id}", headers=headers)
         assert detail.status_code == 200
         assert detail.json()["prompt_id"] == "education.concept-explanation"
 
 
 def test_missing_run_is_404(tmp_path) -> None:
-    app = create_app(f"sqlite:///{tmp_path / 'runs.db'}")
-    with TestClient(app) as client:
-        response = client.get("/api/v1/runs/missing")
+    with authenticated_client(tmp_path) as client:
+        headers, _ = register(client)
+        response = client.get("/api/v1/runs/missing", headers=headers)
         assert response.status_code == 404
