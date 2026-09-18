@@ -63,6 +63,10 @@ class InvitationRequest(StrictModel):
     role: str
 
 
+class MemberRoleRequest(StrictModel):
+    role: str
+
+
 class InvitationTokenRequest(StrictModel):
     token: str = Field(min_length=20, max_length=512)
 
@@ -304,6 +308,67 @@ def create_app(
         )
         return run_store.list_workspace_members(workspace_id)
 
+    @app.patch(
+        "/api/v1/workspaces/{workspace_id}/members/{member_user_id}",
+        tags=["workspaces"],
+    )
+    def update_workspace_member(
+        workspace_id: str,
+        member_user_id: str,
+        request: MemberRoleRequest,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> dict[str, object]:
+        actor = require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.MANAGE_MEMBERS
+        )
+        target = run_store.membership(member_user_id, workspace_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Workspace member not found")
+        if str(actor["role"]) == "admin" and str(target["role"]) in {"owner", "admin"}:
+            raise HTTPException(status_code=403, detail="Workspace access denied")
+        try:
+            role = parse_role(request.role)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        if role.value == "owner":
+            raise HTTPException(
+                status_code=422,
+                detail="Owner transfer is not supported by this operation",
+            )
+        try:
+            return run_store.update_member_role(
+                workspace_id,
+                member_user_id,
+                role.value,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.delete(
+        "/api/v1/workspaces/{workspace_id}/members/{member_user_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+        tags=["workspaces"],
+    )
+    def remove_workspace_member(
+        workspace_id: str,
+        member_user_id: str,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> None:
+        actor = require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.MANAGE_MEMBERS
+        )
+        target = run_store.membership(member_user_id, workspace_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Workspace member not found")
+        if str(actor["role"]) == "admin" and str(target["role"]) in {"owner", "admin"}:
+            raise HTTPException(status_code=403, detail="Workspace access denied")
+        try:
+            run_store.remove_workspace_member(workspace_id, member_user_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.post(
         "/api/v1/workspaces/{workspace_id}/invitations",
         status_code=201,
@@ -485,6 +550,9 @@ def create_app(
         user: UserDependency,
         workspace_id: WorkspaceDependency,
     ) -> WorkbenchResponse:
+        require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.RUN_EXPERIMENTS
+        )
         prompt = catalog.get(request.prompt_id)
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
@@ -540,6 +608,9 @@ def create_app(
         user: UserDependency,
         workspace_id: WorkspaceDependency,
     ) -> ComparisonResponse:
+        require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.RUN_EXPERIMENTS
+        )
         prompt = catalog.get(request.prompt_id)
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
@@ -606,9 +677,12 @@ def create_app(
     def create_run(
         report: EvaluationReport,
         run_store: StoreDependency,
-        _: UserDependency,
+        user: UserDependency,
         workspace_id: WorkspaceDependency,
     ) -> RunCreated:
+        require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.RUN_EXPERIMENTS
+        )
         return RunCreated(id=run_store.save(report, workspace_id))
 
     @app.get("/api/v1/runs")
