@@ -4,7 +4,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/ci.yml)
 [![Prompt Gate](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/prompt-evaluation.yml?branch=main&style=for-the-badge&label=Prompt%20Gate&color=22d3ee)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/prompt-evaluation.yml)
-[![Release](https://img.shields.io/badge/MVP-v0.6.0-a78bfa?style=for-the-badge)](RELEASE_NOTES.md)
+[![Release](https://img.shields.io/badge/Phase%209B-v0.9.0-a78bfa?style=for-the-badge)](RELEASE_NOTES.md)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-f472b6?style=for-the-badge)](LICENSE)
 
@@ -215,4 +215,4 @@ Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 
 ## Release and license
 
-Read the [v0.6.0 release notes](RELEASE_NOTES.md). Licensed under [Apache-2.0](LICENSE).
+Read the [v0.9.0 release notes](RELEASE_NOTES.md) and the [product roadmap](ROADMAP.md). Licensed under [Apache-2.0](LICENSE).
