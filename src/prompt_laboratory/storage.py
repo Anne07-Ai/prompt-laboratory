@@ -231,6 +231,24 @@ class RunStore:
                 else None
             )
 
+    def list_workspace_members(self, workspace_id: str) -> list[dict[str, object]]:
+        statement = (
+            select(WorkspaceMembership, User)
+            .join(User, User.id == WorkspaceMembership.user_id)
+            .where(WorkspaceMembership.workspace_id == workspace_id)
+            .order_by(User.display_name, User.email)
+        )
+        with Session(self.engine) as session:
+            return [
+                {
+                    "user_id": user.id,
+                    "email": user.email,
+                    "display_name": user.display_name,
+                    "role": membership.role,
+                }
+                for membership, user in session.execute(statement)
+            ]
+
     def create_invitation(
         self,
         *,
