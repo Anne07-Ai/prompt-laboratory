@@ -1,5 +1,5 @@
-from sqlalchemy import text
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from prompt_laboratory.api import create_app
 
@@ -73,6 +73,16 @@ def test_owner_can_invite_and_recipient_can_accept_once(tmp_path) -> None:
         workspaces = client.get("/api/v1/workspaces", headers=auth(invited)).json()
         shared = next(item for item in workspaces if item["id"] == workspace_id)
         assert shared["role"] == "editor"
+
+        members = client.get(
+            f"/api/v1/workspaces/{workspace_id}/members",
+            headers=auth(invited),
+        )
+        assert members.status_code == 200
+        assert {member["email"] for member in members.json()} == {
+            "owner@example.com",
+            "editor@example.com",
+        }
 
         reused = client.post(
             "/api/v1/invitations/accept",
