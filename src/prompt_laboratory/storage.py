@@ -231,6 +231,137 @@ class RunStore:
                 else None
             )
 
+    def create_invitation(
+        self,
+        *,
+        workspace_id: str,
+        inviter_user_id: str,
+        invited_email: str,
+        role: str,
+        token_hash: str,
+        expires_at: datetime,
+    ) -> dict[str, object]:
+        email = invited_email.strip().lower()
+        now = datetime.now(UTC)
+        with Session(self.engine, expire_on_commit=False) as session:
+            invited_user = session.scalar(select(User).where(User.email == email))
+            if invited_user is not None:
+                existing_member = session.scalar(
+                    select(WorkspaceMembership).where(
+                        WorkspaceMembership.workspace_id == workspace_id,
+                        WorkspaceMembership.user_id == invited_user.id,
+                    )
+                )
+                if existing_member is not None:
+                    raise ValueError("User is already a workspace member")
+
+            pending = session.scalar(
+                select(WorkspaceInvitation).where(
+                    WorkspaceInvitation.workspace_id == workspace_id,
+                    WorkspaceInvitation.invited_email == email,
+                    WorkspaceInvitation.status == "pending",
+                    WorkspaceInvitation.expires_at > now,
+                )
+            )
+            if pending is not None:
+                raise ValueError("A pending invitation already exists")
+
+            row = WorkspaceInvitation(
+                id=str(uuid4()),
+                workspace_id=workspace_id,
+                inviter_user_id=inviter_user_id,
+                invited_email=email,
+                role=role,
+                token_hash=token_hash,
+                status="pending",
+                expires_at=expires_at,
+                created_at=now,
+                responded_at=None,
+            )
+            session.add(row)
+            session.commit()
+            return self._invitation_dict(row)
+
+    def list_workspace_invitations(self, workspace_id: str) -> list[dict[str, object]]:
+        statement = (
+            select(WorkspaceInvitation)
+            .where(WorkspaceInvitation.workspace_id == workspace_id)
+            .order_by(WorkspaceInvitation.created_at.desc())
+        )
+        with Session(self.engine) as session:
+            return [self._invitation_dict(row) for row in session.scalars(statement)]
+
+    def list_user_invitations(self, invited_email: str) -> list[dict[str, object]]:
+        now = datetime.now(UTC)
+        statement = (
+            select(WorkspaceInvitation, Workspace.name)
+            .join(Workspace, Workspace.id == WorkspaceInvitation.workspace_id)
+            .where(
+                WorkspaceInvitation.invited_email == invited_email.strip().lower(),
+                WorkspaceInvitation.status == "pending",
+                WorkspaceInvitation.expires_at > now,
+            )
+            .order_by(WorkspaceInvitation.created_at.desc())
+        )
+        with Session(self.engine) as session:
+            return [
+                {**self._invitation_dict(row), "workspace_name": workspace_name}
+                for row, workspace_name in session.execute(statement)
+            ]
+
+    def respond_to_invitation(
+        self,
+        *,
+        token_hash: str,
+        user_id: str,
+        user_email: str,
+        accept: bool,
+    ) -> dict[str, object]:
+        now = datetime.now(UTC)
+        with Session(self.engine, expire_on_commit=False) as session:
+            row = session.scalar(
+                select(WorkspaceInvitation).where(
+                    WorkspaceInvitation.token_hash == token_hash
+                )
+            )
+            if row is None or row.invited_email != user_email.strip().lower():
+                raise ValueError("Invitation is invalid")
+            if row.status != "pending":
+                raise ValueError("Invitation has already been used")
+
+            expires_at = row.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            if expires_at <= now:
+                row.status = "expired"
+                row.responded_at = now
+                session.commit()
+                raise ValueError("Invitation has expired")
+
+            if accept:
+                existing = session.scalar(
+                    select(WorkspaceMembership).where(
+                        WorkspaceMembership.workspace_id == row.workspace_id,
+                        WorkspaceMembership.user_id == user_id,
+                    )
+                )
+                if existing is not None:
+                    raise ValueError("User is already a workspace member")
+                session.add(
+                    WorkspaceMembership(
+                        id=str(uuid4()),
+                        workspace_id=row.workspace_id,
+                        user_id=user_id,
+                        role=row.role,
+                    )
+                )
+                row.status = "accepted"
+            else:
+                row.status = "rejected"
+            row.responded_at = now
+            session.commit()
+            return self._invitation_dict(row)
+
     def save(self, report: EvaluationReport, workspace_id: str | None = None) -> str:
         run_id = str(uuid4())
         row = EvaluationRun(
@@ -400,6 +531,20 @@ class RunStore:
             result = session.execute(statement)
             session.commit()
             return bool(result.rowcount)
+
+    @staticmethod
+    def _invitation_dict(row: WorkspaceInvitation) -> dict[str, object]:
+        return {
+            "id": row.id,
+            "workspace_id": row.workspace_id,
+            "inviter_user_id": row.inviter_user_id,
+            "invited_email": row.invited_email,
+            "role": row.role,
+            "status": row.status,
+            "expires_at": row.expires_at,
+            "created_at": row.created_at,
+            "responded_at": row.responded_at,
+        }
 
     @staticmethod
     def _user_dict(row: User, include_password: bool = False) -> dict[str, object]:
