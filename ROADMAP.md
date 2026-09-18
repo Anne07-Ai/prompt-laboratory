@@ -19,9 +19,9 @@ Phases 1 through 9B are complete:
 
 Goal: turn workspace isolation into a usable multi-person collaboration model.
 
-- [ ] Create workspace invitations with expiry and single-use acceptance
-- [ ] Accept or reject an invitation as the authenticated invited user
-- [ ] List workspace members and pending invitations
+- [x] Create workspace invitations with expiry and single-use acceptance
+- [x] Accept or reject an invitation as the authenticated invited user
+- [x] List workspace members and pending invitations
 - [x] Define owner, admin, editor, and viewer permissions
 - [ ] Enforce permissions centrally across workspace-scoped endpoints
 - [ ] Allow authorized users to change roles and remove members
