@@ -21,6 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     delete,
+    func,
     inspect,
     select,
 )
@@ -230,6 +231,67 @@ class RunStore:
                 if row
                 else None
             )
+
+    def update_member_role(
+        self,
+        workspace_id: str,
+        user_id: str,
+        role: str,
+    ) -> dict[str, object]:
+        if role not in {"owner", "admin", "editor", "viewer"}:
+            raise ValueError("Unsupported workspace role")
+        with Session(self.engine, expire_on_commit=False) as session:
+            row = session.scalar(
+                select(WorkspaceMembership).where(
+                    WorkspaceMembership.workspace_id == workspace_id,
+                    WorkspaceMembership.user_id == user_id,
+                )
+            )
+            if row is None:
+                raise ValueError("Workspace member not found")
+            if row.role == "owner" and role != "owner":
+                owner_count = session.scalar(
+                    select(func.count())
+                    .select_from(WorkspaceMembership)
+                    .where(
+                        WorkspaceMembership.workspace_id == workspace_id,
+                        WorkspaceMembership.role == "owner",
+                    )
+                )
+                if int(owner_count or 0) <= 1:
+                    raise ValueError("The final workspace owner cannot be demoted")
+            row.role = role
+            session.commit()
+            return {
+                "workspace_id": row.workspace_id,
+                "user_id": row.user_id,
+                "role": row.role,
+            }
+
+    def remove_workspace_member(self, workspace_id: str, user_id: str) -> bool:
+        with Session(self.engine) as session:
+            row = session.scalar(
+                select(WorkspaceMembership).where(
+                    WorkspaceMembership.workspace_id == workspace_id,
+                    WorkspaceMembership.user_id == user_id,
+                )
+            )
+            if row is None:
+                raise ValueError("Workspace member not found")
+            if row.role == "owner":
+                owner_count = session.scalar(
+                    select(func.count())
+                    .select_from(WorkspaceMembership)
+                    .where(
+                        WorkspaceMembership.workspace_id == workspace_id,
+                        WorkspaceMembership.role == "owner",
+                    )
+                )
+                if int(owner_count or 0) <= 1:
+                    raise ValueError("The final workspace owner cannot be removed")
+            session.delete(row)
+            session.commit()
+            return True
 
     def list_workspace_members(self, workspace_id: str) -> list[dict[str, object]]:
         statement = (
