@@ -23,9 +23,9 @@ Goal: turn workspace isolation into a usable multi-person collaboration model.
 - [x] Accept or reject an invitation as the authenticated invited user
 - [x] List workspace members and pending invitations
 - [x] Define owner, admin, editor, and viewer permissions
-- [ ] Enforce permissions centrally across workspace-scoped endpoints
-- [ ] Allow authorized users to change roles and remove members
-- [ ] Prevent removal or demotion of the final workspace owner
+- [x] Enforce permissions centrally across workspace-scoped endpoints
+- [x] Allow authorized users to change roles and remove members
+- [x] Prevent removal or demotion of the final workspace owner
 - [ ] Add member and invitation management to the dashboard
 - [x] Add the foundational Alembic migration and permission tests
 - [ ] Extend the Docker Compose smoke flow for two-user collaboration
