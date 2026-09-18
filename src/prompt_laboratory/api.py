@@ -290,6 +290,20 @@ def create_app(
     ) -> dict[str, object]:
         return run_store.create_workspace(str(user["id"]), request.name)
 
+    @app.get(
+        "/api/v1/workspaces/{workspace_id}/members",
+        tags=["workspaces"],
+    )
+    def list_workspace_members(
+        workspace_id: str,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> list[dict[str, object]]:
+        require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.READ_WORKSPACE
+        )
+        return run_store.list_workspace_members(workspace_id)
+
     @app.post(
         "/api/v1/workspaces/{workspace_id}/invitations",
         status_code=201,
