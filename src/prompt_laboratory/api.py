@@ -1,7 +1,10 @@
 """Authenticated FastAPI surface for Prompt Laboratory."""
 
+import hashlib
 import os
+import secrets
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -19,6 +22,12 @@ from prompt_laboratory.auth import (
 )
 from prompt_laboratory.credentials import CredentialCipher
 from prompt_laboratory.evaluation import EvaluationReport
+from prompt_laboratory.permissions import (
+    INVITABLE_ROLES,
+    WorkspacePermission,
+    has_permission,
+    parse_role,
+)
 from prompt_laboratory.storage import RunStore
 from prompt_laboratory.workbench import (
     PromptCatalog,
@@ -47,6 +56,15 @@ class LoginRequest(StrictModel):
 
 class WorkspaceRequest(StrictModel):
     name: str = Field(min_length=1, max_length=120)
+
+
+class InvitationRequest(StrictModel):
+    email: str
+    role: str
+
+
+class InvitationTokenRequest(StrictModel):
+    token: str = Field(min_length=20, max_length=512)
 
 
 class AuthResponse(StrictModel):
@@ -205,6 +223,20 @@ def create_app(
 
     WorkspaceDependency = Annotated[str, Depends(current_workspace)]
 
+    def require_workspace_permission(
+        user: dict[str, object],
+        run_store: RunStore,
+        workspace_id: str,
+        permission: WorkspacePermission,
+    ) -> dict[str, object]:
+        membership = run_store.membership(str(user["id"]), workspace_id)
+        if membership is None or not has_permission(str(membership["role"]), permission):
+            raise HTTPException(status_code=403, detail="Workspace access denied")
+        return membership
+
+    def invitation_token_hash(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
+
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -257,6 +289,111 @@ def create_app(
         request: WorkspaceRequest, user: UserDependency, run_store: StoreDependency
     ) -> dict[str, object]:
         return run_store.create_workspace(str(user["id"]), request.name)
+
+    @app.get(
+        "/api/v1/workspaces/{workspace_id}/members",
+        tags=["workspaces"],
+    )
+    def list_workspace_members(
+        workspace_id: str,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> list[dict[str, object]]:
+        require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.READ_WORKSPACE
+        )
+        return run_store.list_workspace_members(workspace_id)
+
+    @app.post(
+        "/api/v1/workspaces/{workspace_id}/invitations",
+        status_code=201,
+        tags=["workspaces"],
+    )
+    def create_invitation(
+        workspace_id: str,
+        request: InvitationRequest,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> dict[str, object]:
+        require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.MANAGE_MEMBERS
+        )
+        email = request.email.strip().lower()
+        if "@" not in email or email.startswith("@") or email.endswith("@"):
+            raise HTTPException(status_code=422, detail="Enter a valid email address")
+        try:
+            role = parse_role(request.role)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        if role not in INVITABLE_ROLES:
+            raise HTTPException(status_code=422, detail="Owner cannot be assigned by invitation")
+
+        token = secrets.token_urlsafe(32)
+        try:
+            invitation = run_store.create_invitation(
+                workspace_id=workspace_id,
+                inviter_user_id=str(user["id"]),
+                invited_email=email,
+                role=role.value,
+                token_hash=invitation_token_hash(token),
+                expires_at=datetime.now(UTC) + timedelta(days=7),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {**invitation, "token": token}
+
+    @app.get(
+        "/api/v1/workspaces/{workspace_id}/invitations",
+        tags=["workspaces"],
+    )
+    def list_workspace_invitations(
+        workspace_id: str,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> list[dict[str, object]]:
+        require_workspace_permission(
+            user, run_store, workspace_id, WorkspacePermission.MANAGE_MEMBERS
+        )
+        return run_store.list_workspace_invitations(workspace_id)
+
+    @app.get("/api/v1/invitations", tags=["workspaces"])
+    def list_my_invitations(
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> list[dict[str, object]]:
+        return run_store.list_user_invitations(str(user["email"]))
+
+    @app.post("/api/v1/invitations/accept", tags=["workspaces"])
+    def accept_invitation(
+        request: InvitationTokenRequest,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> dict[str, object]:
+        try:
+            return run_store.respond_to_invitation(
+                token_hash=invitation_token_hash(request.token),
+                user_id=str(user["id"]),
+                user_email=str(user["email"]),
+                accept=True,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/invitations/reject", tags=["workspaces"])
+    def reject_invitation(
+        request: InvitationTokenRequest,
+        user: UserDependency,
+        run_store: StoreDependency,
+    ) -> dict[str, object]:
+        try:
+            return run_store.respond_to_invitation(
+                token_hash=invitation_token_hash(request.token),
+                user_id=str(user["id"]),
+                user_email=str(user["email"]),
+                accept=False,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/api/v1/prompts", tags=["workbench"])
     def list_prompts(_: UserDependency) -> list[dict[str, Any]]:
