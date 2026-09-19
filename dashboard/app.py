@@ -9,6 +9,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from prompt_laboratory.dashboard_collaboration import (
+    can_manage_members,
+    manageable_members,
+)
+
 API_URL = os.getenv("PROMPT_LAB_API_URL", "http://localhost:8000").rstrip("/")
 
 st.set_page_config(page_title="Prompt Laboratory", page_icon="🧪", layout="wide")
@@ -74,6 +79,26 @@ def fetch_json(path: str, include_workspace: bool = True) -> object:
         timeout=10,
     )
     response.raise_for_status()
+    return response.json()
+
+
+def request_json(
+    method: str,
+    path: str,
+    *,
+    payload: dict[str, object] | None = None,
+    include_workspace: bool = True,
+) -> object | None:
+    response = httpx.request(
+        method,
+        f"{API_URL}{path}",
+        json=payload,
+        headers=auth_headers(include_workspace),
+        timeout=20,
+    )
+    response.raise_for_status()
+    if response.status_code == 204:
+        return None
     return response.json()
 
 
@@ -168,6 +193,163 @@ with st.sidebar:
         st.session_state["workspace_id"] = selected_workspace_id
         st.session_state.pop("workbench_result", None)
         st.rerun()
+    selected_workspace = workspace_by_name[workspace_label]
+    current_role = str(selected_workspace["role"])
+
+    with st.expander("Workspace collaboration"):
+        st.caption(f"Your role: {current_role.title()}")
+        try:
+            members = fetch_json(
+                f"/api/v1/workspaces/{selected_workspace_id}/members",
+                include_workspace=False,
+            )
+        except httpx.HTTPError as exc:
+            st.error(f"Unable to load workspace members: {exc}")
+            members = []
+
+        if members:
+            st.dataframe(
+                pd.DataFrame(members)[["display_name", "email", "role"]],
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "display_name": "Member",
+                    "email": "Email",
+                    "role": "Role",
+                },
+            )
+
+        if can_manage_members(current_role):
+            with st.form("workspace-invitation-form", clear_on_submit=True):
+                invitation_email = st.text_input("Invite by email")
+                invitation_role = st.selectbox(
+                    "Workspace role",
+                    ["viewer", "editor", "admin"],
+                )
+                send_invitation = st.form_submit_button(
+                    "Create invitation",
+                    use_container_width=True,
+                )
+            if send_invitation:
+                try:
+                    invitation = request_json(
+                        "POST",
+                        f"/api/v1/workspaces/{selected_workspace_id}/invitations",
+                        payload={"email": invitation_email, "role": invitation_role},
+                        include_workspace=False,
+                    )
+                    st.success("Invitation created. Share this token securely with the recipient.")
+                    st.code(str(invitation["token"]), language=None)
+                except httpx.HTTPStatusError as exc:
+                    st.error(exc.response.json().get("detail", "Unable to create invitation"))
+                except httpx.HTTPError as exc:
+                    st.error(f"Invitation service unavailable: {exc}")
+
+            try:
+                pending_invitations = fetch_json(
+                    f"/api/v1/workspaces/{selected_workspace_id}/invitations",
+                    include_workspace=False,
+                )
+            except httpx.HTTPError as exc:
+                st.error(f"Unable to load invitations: {exc}")
+                pending_invitations = []
+            if pending_invitations:
+                st.caption("Pending invitations")
+                invitation_frame = pd.DataFrame(pending_invitations)
+                invitation_columns = [
+                    column
+                    for column in ("invited_email", "role", "status", "expires_at")
+                    if column in invitation_frame.columns
+                ]
+                st.dataframe(
+                    invitation_frame[invitation_columns],
+                    hide_index=True,
+                    use_container_width=True,
+                )
+
+            member_targets = manageable_members(
+                members,
+                actor_user_id=str(st.session_state["user"]["id"]),
+                actor_role=current_role,
+            )
+            if member_targets:
+                st.caption("Manage a member")
+                member_by_label = {
+                    f"{member['display_name']} · {member['email']}": member
+                    for member in member_targets
+                }
+                selected_member_label = st.selectbox(
+                    "Member",
+                    list(member_by_label),
+                    key="workspace-member-selection",
+                )
+                selected_member = member_by_label[selected_member_label]
+                role_options = ["viewer", "editor", "admin"]
+                selected_role = st.selectbox(
+                    "New role",
+                    role_options,
+                    index=(
+                        role_options.index(str(selected_member["role"]))
+                        if selected_member["role"] in role_options
+                        else 0
+                    ),
+                    key="workspace-member-role",
+                )
+                update_column, remove_column = st.columns(2)
+                if update_column.button("Update role", use_container_width=True):
+                    try:
+                        request_json(
+                            "PATCH",
+                            f"/api/v1/workspaces/{selected_workspace_id}/members/{selected_member['user_id']}",
+                            payload={"role": selected_role},
+                            include_workspace=False,
+                        )
+                        st.success("Member role updated.")
+                        st.rerun()
+                    except httpx.HTTPStatusError as exc:
+                        st.error(exc.response.json().get("detail", "Unable to update member"))
+                if remove_column.button("Remove member", use_container_width=True):
+                    try:
+                        request_json(
+                            "DELETE",
+                            f"/api/v1/workspaces/{selected_workspace_id}/members/{selected_member['user_id']}",
+                            include_workspace=False,
+                        )
+                        st.success("Member removed.")
+                        st.rerun()
+                    except httpx.HTTPStatusError as exc:
+                        st.error(exc.response.json().get("detail", "Unable to remove member"))
+
+        st.caption("Accept or reject an invitation sent to your account")
+        with st.form("invitation-response-form", clear_on_submit=True):
+            invitation_token = st.text_input("Invitation token", type="password")
+            invitation_action = st.radio(
+                "Response",
+                ["accept", "reject"],
+                horizontal=True,
+            )
+            respond_to_invitation = st.form_submit_button(
+                "Submit response",
+                use_container_width=True,
+            )
+        if respond_to_invitation:
+            try:
+                request_json(
+                    "POST",
+                    f"/api/v1/invitations/{invitation_action}",
+                    payload={"token": invitation_token},
+                    include_workspace=False,
+                )
+                response_label = "accepted" if invitation_action == "accept" else "rejected"
+                st.success(f"Invitation {response_label}.")
+                st.session_state["workspaces"] = fetch_json(
+                    "/api/v1/workspaces", include_workspace=False
+                )
+                st.rerun()
+            except httpx.HTTPStatusError as exc:
+                st.error(exc.response.json().get("detail", "Unable to respond to invitation"))
+            except httpx.HTTPError as exc:
+                st.error(f"Invitation service unavailable: {exc}")
     with st.expander("Provider API keys"):
         st.caption("Keys are encrypted server-side and are never displayed after saving.")
         try:
