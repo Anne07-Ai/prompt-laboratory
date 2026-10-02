@@ -1,12 +1,12 @@
 # Prompt Laboratory roadmap
 
-The roadmap continues from the completed Phase 9B release. Each phase should be delivered through a
+The roadmap continues from the completed Phase 9C release. Each phase should be delivered through a
 reviewed pull request with migrations, API tests, dashboard coverage, documentation, and passing
 GitHub Actions checks.
 
-## Current state — v0.9.0
+## Current state — v0.10.0
 
-Phases 1 through 9B are complete:
+Phases 1 through 9C are complete:
 
 - Git-versioned prompt contracts and repeatable evaluation datasets
 - deterministic and model-based evaluation with regression gates
@@ -14,6 +14,9 @@ Phases 1 through 9B are complete:
 - FastAPI, Streamlit, PostgreSQL, and Docker Compose
 - authenticated, workspace-isolated experiment history
 - encrypted per-user provider credentials
+- invitation-based team collaboration with role-based access
+- permission-aware member management in the Streamlit dashboard
+- two-user Docker Compose collaboration verification
 
 ## Phase 9C — Team collaboration and role-based access
 
@@ -26,19 +29,24 @@ Goal: turn workspace isolation into a usable multi-person collaboration model.
 - [x] Enforce permissions centrally across workspace-scoped endpoints
 - [x] Allow authorized users to change roles and remove members
 - [x] Prevent removal or demotion of the final workspace owner
-- [ ] Add member and invitation management to the dashboard
+- [x] Add member and invitation management to the dashboard
 - [x] Add the foundational Alembic migration and permission tests
-- [ ] Extend the Docker Compose smoke flow for two-user collaboration
+- [x] Extend the Docker Compose smoke flow for two-user collaboration
 
 ### Phase 9C acceptance criteria
 
 - A workspace owner can invite a second registered user without exposing sensitive account data.
 - The invited user cannot access the workspace until accepting a valid invitation.
-- Viewer users cannot create runs, execute prompts, manage credentials, or change membership.
+- Viewer users cannot create runs, execute prompts, or change membership in that workspace.
+- Personal provider credentials remain account-scoped; workspace roles control whether they can be
+  used to execute prompts in the selected workspace.
 - Editor users can run experiments but cannot manage membership.
 - Admin users can manage members but cannot remove or demote the final owner.
 - Cross-workspace access returns a safe authorization response and never leaks resource existence.
 - CI, prompt-quality checks, and the full Compose smoke flow pass.
+
+Status: complete in v0.10.0. The implementation and release evidence are documented in
+[docs/phase9c-team-collaboration.md](docs/phase9c-team-collaboration.md).
 
 ## Phase 9D — Prompt review and approval
 
