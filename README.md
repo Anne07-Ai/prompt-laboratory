@@ -4,7 +4,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/ci.yml)
 [![Prompt Gate](https://img.shields.io/github/actions/workflow/status/Anne07-Ai/prompt-laboratory/prompt-evaluation.yml?branch=main&style=for-the-badge&label=Prompt%20Gate&color=22d3ee)](https://github.com/Anne07-Ai/prompt-laboratory/actions/workflows/prompt-evaluation.yml)
-[![Release](https://img.shields.io/badge/Phase%209B-v0.9.0-a78bfa?style=for-the-badge)](RELEASE_NOTES.md)
+[![Release](https://img.shields.io/badge/Phase%209C-v0.10.0-a78bfa?style=for-the-badge)](RELEASE_NOTES.md)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-f472b6?style=for-the-badge)](LICENSE)
 
@@ -49,6 +49,12 @@ workspace-isolated run history. Phase 9A.1 adds versioned database migrations an
 persists authenticated workbench experiments. See the
 [Phase 9A authentication design](docs/phase9a-auth-workspaces.md) and
 [Phase 9A.1 persistence design](docs/phase9a-1-experiment-persistence.md).
+
+Phase 9B encrypts per-user provider credentials at rest and keeps plaintext keys inside the API
+execution boundary. Phase 9C adds invitation-based collaboration, owner/admin/editor/viewer roles,
+member management, and permission-aware dashboard controls. See the
+[Phase 9B credential design](docs/phase9b-provider-credentials.md) and
+[Phase 9C collaboration design](docs/phase9c-team-collaboration.md).
 
 ## Why Prompt Laboratory?
 
@@ -126,6 +132,7 @@ before a prompt reaches production.
 | Comparison | Prompt versions, providers/models, and approved baselines |
 | Release control | Configurable GitHub Actions regression gate and downloadable evidence |
 | Product surface | FastAPI, PostgreSQL/SQLite, Streamlit, and Docker Compose |
+| Team collaboration | Expiring invitations, workspace roles, member management, and isolation |
 
 ## Cross-industry demonstrations
 
@@ -193,6 +200,7 @@ docs/          architecture, phases, and demonstration guide
 - [x] Phase 9A — secure authentication, memberships, and workspace-isolated history
 - [x] Phase 9A.1 — Alembic migrations and workspace-scoped experiment persistence
 - [x] Phase 9B — encrypted per-user provider credentials and runtime key isolation
+- [x] Phase 9C — team invitations, role-based access, and collaboration dashboard
 
 Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 4](docs/phase4-automation.md) · [Phase 5](docs/phase5-api-dashboard.md) ·
@@ -202,7 +210,8 @@ Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 [Phase 8.2](docs/phase8-2-dashboard-polish.md) ·
 [Phase 9A](docs/phase9a-auth-workspaces.md) ·
 [Phase 9A.1](docs/phase9a-1-experiment-persistence.md) ·
-[Phase 9B](docs/phase9b-provider-credentials.md)
+[Phase 9B](docs/phase9b-provider-credentials.md) ·
+[Phase 9C](docs/phase9c-team-collaboration.md)
 
 ## Safety and release boundaries
 
@@ -215,4 +224,4 @@ Detailed decisions: [Phase 3](docs/phase3-advanced-evaluation.md) ·
 
 ## Release and license
 
-Read the [v0.9.0 release notes](RELEASE_NOTES.md) and the [product roadmap](ROADMAP.md). Licensed under [Apache-2.0](LICENSE).
+Read the [v0.10.0 release notes](RELEASE_NOTES.md) and the [product roadmap](ROADMAP.md). Licensed under [Apache-2.0](LICENSE).
