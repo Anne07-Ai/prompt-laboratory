@@ -33,6 +33,24 @@ def request_json(
         return json.load(response)
 
 
+def assert_http_status(
+    path: str,
+    expected_status: int,
+    *,
+    method: str = "GET",
+    payload: dict[str, object] | None = None,
+    headers: dict[str, str] | None = None,
+) -> None:
+    try:
+        request_json(path, method=method, payload=payload, headers=headers)
+    except urllib.error.HTTPError as exc:
+        assert exc.code == expected_status, (
+            f"Expected HTTP {expected_status} for {method} {path}, got {exc.code}"
+        )
+        return
+    raise AssertionError(f"Expected HTTP {expected_status} for {method} {path}")
+
+
 def wait_until_ready(url: str, name: str) -> None:
     deadline = time.monotonic() + TIMEOUT_SECONDS
     last_error: Exception | None = None
@@ -69,6 +87,58 @@ def main() -> None:
         "Authorization": f"Bearer {token}",
         "X-Workspace-ID": workspace_id,
     }
+
+    collaborator_email = f"compose-collaborator-{uuid4().hex}@example.com"
+    collaborator = request_json(
+        "/api/v1/auth/register",
+        method="POST",
+        payload={
+            "email": collaborator_email,
+            "display_name": "Compose Collaborator",
+            "password": "correct-horse-battery-staple",
+            "workspace_name": "Collaborator Personal Workspace",
+        },
+    )
+    assert isinstance(collaborator, dict)
+    collaborator_token = str(collaborator["access_token"])
+    collaborator_headers = {"Authorization": f"Bearer {collaborator_token}"}
+
+    assert_http_status(
+        f"/api/v1/workspaces/{workspace_id}/members",
+        403,
+        headers=collaborator_headers,
+    )
+
+    invitation = request_json(
+        f"/api/v1/workspaces/{workspace_id}/invitations",
+        method="POST",
+        payload={"email": collaborator_email, "role": "viewer"},
+        headers=auth_headers,
+    )
+    assert isinstance(invitation, dict)
+    invitation_token = str(invitation["token"])
+    assert invitation["role"] == "viewer"
+
+    accepted = request_json(
+        "/api/v1/invitations/accept",
+        method="POST",
+        payload={"token": invitation_token},
+        headers=collaborator_headers,
+    )
+    assert isinstance(accepted, dict)
+    assert accepted["status"] == "accepted"
+
+    collaborator_headers["X-Workspace-ID"] = workspace_id
+    members = request_json(
+        f"/api/v1/workspaces/{workspace_id}/members",
+        headers=collaborator_headers,
+    )
+    assert isinstance(members, list)
+    collaborator_member = next(
+        member for member in members if member["email"] == collaborator_email
+    )
+    collaborator_user_id = str(collaborator_member["user_id"])
+    assert collaborator_member["role"] == "viewer"
 
     identity = request_json("/api/v1/auth/me", headers=auth_headers)
     assert isinstance(identity, dict)
@@ -110,6 +180,40 @@ def main() -> None:
                 "object": {},
                 "array": [],
             }[variable_type]
+
+    assert_http_status(
+        "/api/v1/workbench/execute",
+        403,
+        method="POST",
+        payload={
+            "prompt_id": prompt["id"],
+            "variables": variables,
+            "provider": "mock/echo",
+        },
+        headers=collaborator_headers,
+    )
+
+    promoted = request_json(
+        f"/api/v1/workspaces/{workspace_id}/members/{collaborator_user_id}",
+        method="PATCH",
+        payload={"role": "editor"},
+        headers=auth_headers,
+    )
+    assert isinstance(promoted, dict)
+    assert promoted["role"] == "editor"
+
+    collaborator_result = request_json(
+        "/api/v1/workbench/execute",
+        method="POST",
+        payload={
+            "prompt_id": prompt["id"],
+            "variables": variables,
+            "provider": "mock/echo",
+        },
+        headers=collaborator_headers,
+    )
+    assert isinstance(collaborator_result, dict)
+    assert collaborator_result["provider"] == "mock"
 
     result = request_json(
         "/api/v1/workbench/execute",
