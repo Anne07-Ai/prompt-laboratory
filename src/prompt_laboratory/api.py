@@ -125,11 +125,18 @@ def create_app(
     prompts_dir: str | Path | None = None,
     auth_secret: str | None = None,
     credential_key: str | None = None,
+    demo_mode: bool | None = None,
 ) -> FastAPI:
     store = RunStore(database_url or os.getenv("DATABASE_URL", "sqlite:///prompt-lab.db"))
     catalog = PromptCatalog(prompts_dir or os.getenv("PROMPT_LAB_PROMPTS_DIR", "prompts"))
     configured_secret = auth_secret or os.getenv("PROMPT_LAB_AUTH_SECRET", "")
     configured_credential_key = credential_key or os.getenv("PROMPT_LAB_CREDENTIAL_KEY", "")
+    configured_demo_mode = (
+        demo_mode
+        if demo_mode is not None
+        else os.getenv("PROMPT_LAB_DEMO_MODE", "").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -146,6 +153,7 @@ def create_app(
     app.state.catalog = catalog
     app.state.auth_secret = configured_secret
     app.state.credential_key = configured_credential_key
+    app.state.demo_mode = configured_demo_mode
     bearer = HTTPBearer(auto_error=False)
 
     def get_store() -> RunStore:
@@ -213,6 +221,13 @@ def create_app(
                     provider=provider,
                 )
         return resolved
+
+    def reject_in_demo_mode(feature: str) -> None:
+        if app.state.demo_mode:
+            raise HTTPException(
+                status_code=403,
+                detail=f"{feature} is disabled in the public demonstration",
+            )
 
     def current_workspace(
         user: UserDependency,
@@ -469,6 +484,8 @@ def create_app(
         user: UserDependency,
         run_store: StoreDependency,
     ) -> list[dict[str, Any]]:
+        if app.state.demo_mode:
+            return [item for item in provider_options() if item["id"] == "mock/echo"]
         configured = user_provider_names(run_store, str(user["id"]))
         return provider_options(configured)
 
@@ -477,6 +494,7 @@ def create_app(
         user: UserDependency,
         run_store: StoreDependency,
     ) -> list[dict[str, object]]:
+        reject_in_demo_mode("Provider credentials")
         stored = {
             str(item["provider"]): item
             for item in run_store.list_provider_credentials(str(user["id"]))
@@ -511,6 +529,7 @@ def create_app(
         user: UserDependency,
         run_store: StoreDependency,
     ) -> dict[str, object]:
+        reject_in_demo_mode("Provider credentials")
         if provider not in supported_credentials:
             raise HTTPException(status_code=404, detail="Unsupported provider")
         user_id = str(user["id"])
@@ -539,6 +558,7 @@ def create_app(
         user: UserDependency,
         run_store: StoreDependency,
     ) -> None:
+        reject_in_demo_mode("Provider credentials")
         if provider not in supported_credentials:
             raise HTTPException(status_code=404, detail="Unsupported provider")
         run_store.delete_provider_credential(str(user["id"]), provider)
@@ -556,6 +576,11 @@ def create_app(
         prompt = catalog.get(request.prompt_id)
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
+        if app.state.demo_mode and request.provider != "mock/echo":
+            raise HTTPException(
+                status_code=403,
+                detail="Only the deterministic mock provider is available in the public demonstration",
+            )
         try:
             provider_name = request.provider.split("/", 1)[0]
             api_keys = resolve_user_keys(run_store, str(user["id"]), {provider_name})
@@ -614,6 +639,11 @@ def create_app(
         prompt = catalog.get(request.prompt_id)
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
+        if app.state.demo_mode:
+            raise HTTPException(
+                status_code=403,
+                detail="Multi-provider comparison is disabled in the public demonstration",
+            )
         user_id = str(user["id"])
         user_providers = user_provider_names(run_store, user_id)
         configured = {
