@@ -1,0 +1,54 @@
+name: Deploy Hugging Face Space
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "dashboard/**"
+      - "scripts/run_hugging_face.py"
+      - "prompts/**"
+      - "migrations/**"
+      - "alembic.ini"
+      - "pyproject.toml"
+      - "Dockerfile.huggingface"
+      - "deploy/huggingface/**"
+      - ".github/workflows/deploy-hugging-face.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-hugging-face-space
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: hugging-face
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare Space source
+        run: |
+          mkdir -p "$RUNNER_TEMP/hf-space"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/hf-space"
+          rm -rf "$RUNNER_TEMP/hf-space/.github"
+          rm -rf "$RUNNER_TEMP/hf-space/tests"
+          cp Dockerfile.huggingface "$RUNNER_TEMP/hf-space/Dockerfile"
+          cp deploy/huggingface/README.md "$RUNNER_TEMP/hf-space/README.md"
+
+      - name: Install Hugging Face CLI
+        run: python -m pip install "huggingface_hub>=1.1,<2"
+
+      - name: Publish public mock-only Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          test -n "$HF_TOKEN"
+          hf upload lakshmianne/prompt-laboratory "$RUNNER_TEMP/hf-space" . \
+            --repo-type=space \
+            --delete="*" \
+            --commit-message="Deploy Prompt Laboratory from GitHub ${{ github.sha }}" \
+            --token="$HF_TOKEN"
