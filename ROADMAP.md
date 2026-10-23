@@ -48,6 +48,24 @@ Goal: turn workspace isolation into a usable multi-person collaboration model.
 Status: complete in v0.10.0. The implementation and release evidence are documented in
 [docs/phase9c-team-collaboration.md](docs/phase9c-team-collaboration.md).
 
+## Phase HF-1 — Public Hugging Face demonstration
+
+Goal: provide a safe public product demonstration without turning the Space into a hosted
+production environment.
+
+- [x] Add a single-container Docker adapter for the FastAPI and Streamlit processes
+- [x] Expose only the Streamlit surface on Hugging Face port `7860`
+- [x] Use ephemeral SQLite storage and generated runtime secrets
+- [x] Create anonymous isolated visitor sessions without collecting personal sign-up details
+- [x] Enforce mock-only provider execution at the API boundary
+- [x] Reject provider credential operations in public-demo mode
+- [x] Add a public-data warning and demo-mode tests
+- [ ] Create the `lakshmianne/prompt-laboratory` Docker Space
+- [ ] Verify the live Space build and smoke workflow
+
+The adapter and security decisions are documented in
+[docs/hugging-face-space.md](docs/hugging-face-space.md).
+
 ## Phase 9D — Prompt review and approval
 
 - [ ] Draft, review, approved, rejected, and superseded prompt states

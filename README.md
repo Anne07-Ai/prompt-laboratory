@@ -98,6 +98,19 @@ Both server secrets are required and must contain at least 32 characters. Provid
 optional; users can store encrypted personal keys from the dashboard, and the deterministic mock
 provider works without any external credential.
 
+### Hugging Face public demo
+
+The Hugging Face Docker adapter runs a deliberately restricted public demonstration on port `7860`.
+It creates anonymous isolated sessions, uses temporary SQLite storage, and enforces the deterministic
+mock provider at the API boundary. It does not accept OpenAI, Anthropic, or Gemini credentials.
+
+```bash
+docker build -f Dockerfile.huggingface -t prompt-laboratory-hf .
+docker run --rm -p 7860:7860 prompt-laboratory-hf
+```
+
+See the [Hugging Face Space architecture and security boundary](docs/hugging-face-space.md).
+
 | Surface | Address | Purpose |
 |---|---|---|
 | Experiment console | <http://localhost:8501> | Quality, cost, latency, and run history |

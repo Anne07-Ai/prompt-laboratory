@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PROMPT_LAB_DEMO_MODE=true \
+    PROMPT_LAB_API_URL=http://127.0.0.1:8000
+
+WORKDIR /app
+COPY pyproject.toml README.md alembic.ini ./
+COPY migrations ./migrations
+COPY src ./src
+COPY scripts ./scripts
+COPY prompts ./prompts
+COPY dashboard ./dashboard
+RUN pip install --no-cache-dir ".[dashboard]" \
+    && useradd --create-home --uid 10001 promptlab \
+    && chown -R promptlab:promptlab /app
+
+USER promptlab
+EXPOSE 7860
+CMD ["python", "scripts/run_hugging_face.py"]

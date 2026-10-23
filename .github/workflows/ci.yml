@@ -27,6 +27,8 @@ jobs:
         run: docker build -t prompt-laboratory-api:test .
       - name: Build dashboard container
         run: docker build -f Dockerfile.dashboard -t prompt-laboratory-dashboard:test .
+      - name: Build Hugging Face demo container
+        run: docker build -f Dockerfile.huggingface -t prompt-laboratory-huggingface:test .
       - name: Phase 2 CLI smoke evaluation
         run: |
           prompt-lab evaluate \

@@ -2,6 +2,7 @@
 
 import json
 import os
+import secrets
 
 import httpx
 import pandas as pd
@@ -15,6 +16,12 @@ from prompt_laboratory.dashboard_collaboration import (
 )
 
 API_URL = os.getenv("PROMPT_LAB_API_URL", "http://localhost:8000").rstrip("/")
+DEMO_MODE = os.getenv("PROMPT_LAB_DEMO_MODE", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 st.set_page_config(page_title="Prompt Laboratory", page_icon="🧪", layout="wide")
 st.markdown(
@@ -61,6 +68,12 @@ st.markdown(
     '<div class="lab-subtitle">Version, evaluate, compare and ship better prompts.</div>',
     unsafe_allow_html=True,
 )
+if DEMO_MODE:
+    st.info(
+        "Public demonstration · Synthetic inputs only · Mock provider only · "
+        "Do not enter personal, confidential, regulated, or production information. "
+        "Demo data may reset without notice."
+    )
 
 
 def auth_headers(include_workspace: bool = True) -> dict[str, str]:
@@ -112,6 +125,22 @@ def submit_auth(path: str, payload: dict[str, str]) -> None:
     st.session_state["workspace_id"] = result["workspaces"][0]["id"]
     st.rerun()
 
+
+if "access_token" not in st.session_state and DEMO_MODE:
+    demo_id = secrets.token_hex(8)
+    try:
+        submit_auth(
+            "/api/v1/auth/register",
+            {
+                "email": f"demo-{demo_id}@example.invalid",
+                "display_name": "Demo visitor",
+                "password": secrets.token_urlsafe(24),
+                "workspace_name": "Public demo workspace",
+            },
+        )
+    except httpx.HTTPError as exc:
+        st.error(f"Unable to start an isolated demo session: {exc}")
+    st.stop()
 
 if "access_token" not in st.session_state:
     st.subheader("Sign in to your laboratory")
@@ -351,14 +380,18 @@ with st.sidebar:
             except httpx.HTTPError as exc:
                 st.error(f"Invitation service unavailable: {exc}")
     with st.expander("Provider API keys"):
-        st.caption("Keys are encrypted server-side and are never displayed after saving.")
-        try:
-            credential_statuses = fetch_json(
-                "/api/v1/credentials", include_workspace=False
-            )
-        except httpx.HTTPError as exc:
-            st.error(f"Credential service unavailable: {exc}")
+        if DEMO_MODE:
+            st.caption("External provider credentials are disabled in this public demonstration.")
             credential_statuses = []
+        else:
+            st.caption("Keys are encrypted server-side and are never displayed after saving.")
+            try:
+                credential_statuses = fetch_json(
+                    "/api/v1/credentials", include_workspace=False
+                )
+            except httpx.HTTPError as exc:
+                st.error(f"Credential service unavailable: {exc}")
+                credential_statuses = []
 
         if credential_statuses:
             credential_by_label = {
@@ -452,7 +485,7 @@ if prompt_catalog:
 
     workbench_mode = st.radio(
         "Experiment mode",
-        ["Single run", "Compare models"],
+        ["Single run"] if DEMO_MODE else ["Single run", "Compare models"],
         horizontal=True,
         label_visibility="collapsed",
     )
